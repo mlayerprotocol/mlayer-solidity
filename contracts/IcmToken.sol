@@ -6,8 +6,8 @@ import "./common/IERC20.sol";
 import "./common/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract ERC20 is IERC20, Ownable {
-    uint256 public totalSupply = 1000000000;
+contract IcmToken is IERC20, Ownable {
+    uint256 public totalSupply = 1000000000000000 * 10**18;
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
     string public name = "ICM Tokn";

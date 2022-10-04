@@ -47,4 +47,24 @@ describe("Stake", function () {
       expect(await _stake.stakeBalance(owner.address)).to.equal(stakeVal);
     });
   });
+
+
+  describe("Get Level", function () {
+    const level = 1;
+    const stakeVal = 2000;
+    it(`Level is : ${level}`, async function () {
+      const { _stake,_icmToken, owner } = await loadFixture(
+        deployOneYearLockFixture
+      );
+
+      await _icmToken.approve(_stake.address, stakeVal);
+
+      await expect(_stake.stake(stakeVal)).to.not.be.revertedWith(
+        "Insufficient Allowance"
+      );
+      await _stake.stakeBalance(owner.address)
+
+      expect(await _stake.getNodeLevel(owner.address)).to.equal(level);
+    });
+  });
 });

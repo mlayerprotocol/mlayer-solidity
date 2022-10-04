@@ -3,9 +3,9 @@
 pragma solidity >=0.7.0 <0.9.0;
 
 import "./common/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-contract Stake is Ownable {
+contract Stake is OwnableUpgradeable {
     mapping(address => uint256) public stakeBalance;
     mapping(address => address) public nodeAddresses;
     mapping(address => address) public stakeAddresses;
@@ -31,7 +31,8 @@ contract Stake is Ownable {
         locked = false;
     }
 
-    constructor(address _address) Ownable() {
+    
+    function initialize(address _address) public initializer {
         tokenContract = IERC20(_address);
     }
 
