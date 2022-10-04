@@ -15,7 +15,9 @@ contract ERC20 is IERC20, Ownable {
     uint8 public decimals = 18;
 
     constructor() Ownable() {
-        mint(msg.sender, totalSupply);
+        uint256 _totalSup = totalSupply;
+        mint(msg.sender, _totalSup);
+        totalSupply = _totalSup;
     }
 
     function transfer(address recipient, uint256 amount)
