@@ -10,17 +10,30 @@ contract Stake is OwnableUpgradeable {
     mapping(address => address) public nodeAddresses;
     mapping(address => address) public stakeAddresses;
 
-    mapping(address => uint256) public nodeTokenPerMessage;
-    mapping(address => mapping(address => uint256)) public userMessages;
     
 
-    event MessageTokenIncrease(address node, address nodeAddresses);
-    event MessageTokenRate(address node, uint256 rate);
+    struct Order{
+        address nodeAddress;
+        address buyer;
+        uint256 tokenAmount;
+        uint256 messageAmount;
+    }
+
+    
+    
+
+    event MessagePurchase(address indexed node, address indexed buyer, uint256 token, uint256 messages, bytes32 indexed nonce);
+    event MessageTokenRate(address indexed node, uint256 rate);
 
     bool public withdrawalEnabled;
     bool public locked;
     uint256 public minStake;
     IERC20 tokenContract;
+
+    mapping(address => uint256) public nodeTokenPerMessage;
+    mapping(address => mapping(address => uint256)) public userMessages;
+    mapping(bytes32 => Order ) public orders;
+
     event StakeEvent(
         address indexed account,
         uint256 amount,
@@ -101,10 +114,22 @@ contract Stake is OwnableUpgradeable {
         emit MessageTokenRate(msg.sender, rate);
     }
 
-    function transferTokenToAddress(address _address, uint256 tokens) public {
+    function buyMessages(address _nodeAddresses, uint256 tokens, bytes32 nonce) public {
+        require(_nodeAddresses != address(0), "Node Address must not be an empty address");
         require(tokens > 0, "You need to add at least a token");
-        userMessages[_address][msg.sender] += tokens;
-        emit MessageTokenIncrease(_address, msg.sender);
+        require(orders[nonce].nodeAddress == address(0), "Order already created");
+        tokenContract.transferFrom(msg.sender, _nodeAddresses, tokens);
+        uint256 rate = nodeTokenPerMessage[_nodeAddresses];
+        uint256 messageCount = tokens/rate;
+        userMessages[msg.sender][_nodeAddresses] += messageCount;
+        Order memory _order = Order({
+            nodeAddress: _nodeAddresses,
+            buyer: msg.sender,
+            tokenAmount: tokens,
+            messageAmount: messageCount
+        });
+        orders[nonce] = _order;
+        emit MessagePurchase(_nodeAddresses, msg.sender, tokens, messageCount, nonce);
 
     }
 }
