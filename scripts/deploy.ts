@@ -27,7 +27,7 @@ async function main() {
   console.log(`Stake deployed to ${_stake.address}`);
 
   return { _icmToken, _stake, owner, otherAccount };
-
+  // 0xdA8b9F796676Bd2E3aC47bE5a0EdB507d17B632a
   // console.log(
   //   `Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
   // );

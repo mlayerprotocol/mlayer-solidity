@@ -9,6 +9,14 @@ contract Stake is OwnableUpgradeable {
     mapping(address => uint256) public stakeBalance;
     mapping(address => address) public nodeAddresses;
     mapping(address => address) public stakeAddresses;
+
+    mapping(address => uint256) public nodeTokenPerMessage;
+    mapping(address => mapping(address => uint256)) public userMessages;
+    
+
+    event MessageTokenIncrease(address node, address nodeAddresses);
+    event MessageTokenRate(address node, uint256 rate);
+
     bool public withdrawalEnabled;
     bool public locked;
     uint256 public minStake;
@@ -85,5 +93,18 @@ contract Stake is OwnableUpgradeable {
         uint256 balance = stakeBalance[_staker];
         if (balance < minStake) return 0;
         return 1;
+    }
+
+
+    function setTokenPerMessage(uint256 rate) public {
+        nodeTokenPerMessage[msg.sender] = rate;
+        emit MessageTokenRate(msg.sender, rate);
+    }
+
+    function transferTokenToAddress(address _address, uint256 tokens) public {
+        require(tokens > 0, "You need to add at least a token");
+        userMessages[_address][msg.sender] += tokens;
+        emit MessageTokenIncrease(_address, msg.sender);
+
     }
 }
