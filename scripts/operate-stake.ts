@@ -10,11 +10,12 @@ async function main() {
   const _token = await Token.attach(
     TOKEN_ADDRESS
   );
-  await _token.approve(STAKE_ADDRESS, '100')
+  const approve = await _token.approve(STAKE_ADDRESS, '2500')
+  await approve.wait();
   const _stake = await Stake.attach(
     STAKE_ADDRESS
   );
-  await _stake.stake('100');
+  await _stake.stake('2500');
   console.log('Operate on : ', _stake.address)
   return { _stake, owner, otherAccount };
 }

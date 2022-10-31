@@ -34,6 +34,12 @@ contract Stake is OwnableUpgradeable {
     mapping(address => mapping(address => uint256)) public userMessages;
     mapping(bytes32 => Order ) public orders;
 
+    uint256 public stakerIndex;
+    mapping(uint256 => address) public stakerIds;
+    mapping(address => uint256) public stakerIdsRef;
+
+    uint256 public minConst;
+
     event StakeEvent(
         address indexed account,
         uint256 amount,
@@ -59,6 +65,13 @@ contract Stake is OwnableUpgradeable {
 
     function stake(uint256 amount) public {
         require(amount > 0, "You need to Stake at least some tokens");
+        require(amount >= getMinStake(), "You need to Stake at least some tokens");
+
+        if(stakerIdsRef[msg.sender] == 0 ){
+            stakerIndex++;
+            stakerIds[stakerIndex] == msg.sender;
+            stakerIdsRef[msg.sender] == stakerIndex;
+        }
         // uint256 allowance = tokenContract.allowance(msg.sender, address(this));
         // require(allowance >= amount, "Check the token allowance");
         tokenContract.transferFrom(msg.sender, address(this), amount);
@@ -104,7 +117,7 @@ contract Stake is OwnableUpgradeable {
             return 0;
         }
         uint256 balance = stakeBalance[_staker];
-        if (balance < minStake) return 0;
+        if (balance < getMinStake()) return 0;
         return 1;
     }
 
@@ -131,5 +144,18 @@ contract Stake is OwnableUpgradeable {
         orders[nonce] = _order;
         emit MessagePurchase(_nodeAddresses, msg.sender, tokens, messageCount, nonce);
 
+    }
+
+
+    function getMinStake()
+        public
+        view
+        returns (uint256)
+    {
+        return minConst + (minConst * stakerIndex**2);   
+    }
+
+    function setMinConst(uint256 _const) public onlyOwner {
+        minConst = _const;
     }
 }
