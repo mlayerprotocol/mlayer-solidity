@@ -365,6 +365,342 @@
           }
         }
       }
+    },
+    "e1f7e5b6825385ec84d8d321ced0240bcac713f23af5a870b46b9964cc45c456": {
+      "address": "0xD2842507da740ceB16dCA218304675DeB638b6F8",
+      "txHash": "0x4a031007bd3aa8599b588cc7c44bdd53665407c63296cf36ea4d2f5f2df606bc",
+      "layout": {
+        "solcVersion": "0.8.9",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:94"
+          },
+          {
+            "label": "stakeBalance",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:9"
+          },
+          {
+            "label": "nodeAddresses",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_mapping(t_address,t_address)",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:10"
+          },
+          {
+            "label": "stakeAddresses",
+            "offset": 0,
+            "slot": "103",
+            "type": "t_mapping(t_address,t_address)",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:11"
+          },
+          {
+            "label": "withdrawalEnabled",
+            "offset": 0,
+            "slot": "104",
+            "type": "t_bool",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:28"
+          },
+          {
+            "label": "locked",
+            "offset": 1,
+            "slot": "104",
+            "type": "t_bool",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:29"
+          },
+          {
+            "label": "minStake",
+            "offset": 0,
+            "slot": "105",
+            "type": "t_uint256",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:30"
+          },
+          {
+            "label": "tokenContract",
+            "offset": 0,
+            "slot": "106",
+            "type": "t_contract(IERC20)1606",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:31"
+          },
+          {
+            "label": "nodeTokenPerMessage",
+            "offset": 0,
+            "slot": "107",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:33"
+          },
+          {
+            "label": "userMessages",
+            "offset": 0,
+            "slot": "108",
+            "type": "t_mapping(t_address,t_mapping(t_address,t_uint256))",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:34"
+          },
+          {
+            "label": "orders",
+            "offset": 0,
+            "slot": "109",
+            "type": "t_mapping(t_bytes32,t_struct(Order)653_storage)",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:35"
+          },
+          {
+            "label": "stakerCount",
+            "offset": 0,
+            "slot": "110",
+            "type": "t_uint256",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:37"
+          },
+          {
+            "label": "stakerIds",
+            "offset": 0,
+            "slot": "111",
+            "type": "t_mapping(t_uint256,t_address)",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:38"
+          },
+          {
+            "label": "stakerIdsRef",
+            "offset": 0,
+            "slot": "112",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:39"
+          },
+          {
+            "label": "minStakable",
+            "offset": 0,
+            "slot": "113",
+            "type": "t_uint256",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:41"
+          },
+          {
+            "label": "calibrator",
+            "offset": 0,
+            "slot": "114",
+            "type": "t_uint256",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:42"
+          },
+          {
+            "label": "nodeAllocation",
+            "offset": 0,
+            "slot": "115",
+            "type": "t_mapping(t_address,t_array(t_struct(AllocationStruct)714_storage)dyn_storage)",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:49"
+          },
+          {
+            "label": "nodeAllocationIndexes",
+            "offset": 0,
+            "slot": "116",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:51"
+          },
+          {
+            "label": "stakerNodeAddresses",
+            "offset": 0,
+            "slot": "117",
+            "type": "t_mapping(t_address,t_array(t_address)dyn_storage)",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:52"
+          },
+          {
+            "label": "nodeCount",
+            "offset": 0,
+            "slot": "118",
+            "type": "t_uint256",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:54"
+          },
+          {
+            "label": "nodeIds",
+            "offset": 0,
+            "slot": "119",
+            "type": "t_mapping(t_uint256,t_address)",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:55"
+          },
+          {
+            "label": "nodeIdsRef",
+            "offset": 0,
+            "slot": "120",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "Stake",
+            "src": "contracts/Stake.sol:56"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_address)dyn_storage": {
+            "label": "address[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_struct(AllocationStruct)714_storage)dyn_storage": {
+            "label": "struct Stake.AllocationStruct[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_contract(IERC20)1606": {
+            "label": "contract IERC20",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_address,t_address)": {
+            "label": "mapping(address => address)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_array(t_address)dyn_storage)": {
+            "label": "mapping(address => address[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_array(t_struct(AllocationStruct)714_storage)dyn_storage)": {
+            "label": "mapping(address => struct Stake.AllocationStruct[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_mapping(t_address,t_uint256))": {
+            "label": "mapping(address => mapping(address => uint256))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(Order)653_storage)": {
+            "label": "mapping(bytes32 => struct Stake.Order)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_address)": {
+            "label": "mapping(uint256 => address)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(AllocationStruct)714_storage": {
+            "label": "struct Stake.AllocationStruct",
+            "members": [
+              {
+                "label": "price",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "count",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(Order)653_storage": {
+            "label": "struct Stake.Order",
+            "members": [
+              {
+                "label": "nodeAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "buyer",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "tokenAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "messageAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "128"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
     }
   }
 }
