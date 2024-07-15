@@ -5,6 +5,12 @@ pragma solidity >=0.7.0 <0.9.0;
 import "./common/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
+import {LibSchnorr} from "./libs/schnorr/LibSchnorr.sol";
+import {LibSecp256k1} from "./libs/schnorr/LibSecp256k1.sol";
+
+import {LibSchnorrExtended} from "./libs/schnorr/LibSchnorrExtended.sol";
+import {LibSecp256k1Extended} from "./libs/schnorr/LibSecp256k1Extended.sol";
+
 contract Subnet is OwnableUpgradeable {
     
     mapping(address => address) public stakeAddresses;
@@ -197,6 +203,16 @@ contract Subnet is OwnableUpgradeable {
         bytes32 messageHash
         ) public {
             
+
+            // bool ok = LibSchnorr.verifySignature(
+            //     pubKeys.aggregatePublicKeys(),
+            //     message,
+            //     bytes32(signature),
+            //     commitment
+            // );
+
+
+
         // bytes memory bytesVal = abi.encodePacked(subnetId);
         // require(getSubnetBalance(subnetId) >= amount, "Amount should not be greater than subnet balance");
         // subnetBalance[bytesVal] -= amount;
