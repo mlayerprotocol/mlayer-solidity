@@ -8,7 +8,9 @@
 // export default config;
 
 
-import '@nomiclabs/hardhat-waffle';
+// import '@nomiclabs/hardhat-waffle';
+import { HardhatUserConfig } from "hardhat/config";
+import "@nomicfoundation/hardhat-toolbox";
 import '@openzeppelin/hardhat-upgrades';
 import secrets from './secrets';
 
@@ -26,7 +28,7 @@ module.exports = {
   solidity: {
     compilers: [
       {
-        version: '0.8.16',
+        version: '0.8.24',
         settings: {
           optimizer: {
             enabled: true,
@@ -45,6 +47,15 @@ module.exports = {
       },
       {
         version: '0.6.6',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        },
+      },
+      {
+        version: '0.5.16',
         settings: {
           optimizer: {
             enabled: true,

@@ -34,8 +34,8 @@ describe('Stake', function () {
 
     it('Should verify multiple aggregate signatures', async function () {
       const { schnorr } = await loadFixture(deployOneYearLockFixture);
-      const hash = ethers.utils.keccak256(Buffer.from('femi'));
-      const seed = ethers.utils.randomBytes(16);
+      const hash = ethers.keccak256(Buffer.from('femi'));
+      const seed = ethers.randomBytes(16);
       console.log(
         'SEEED',
         Buffer.from(seed.buffer, seed.byteOffset, seed.byteLength).toString(
@@ -45,9 +45,10 @@ describe('Stake', function () {
       const wallet = ethers.Wallet.createRandom();
       // wallet.publicKey.console.log('SEEED', seed);
       const seeds = [
-        Buffer.from('2f04020b9c71fdb501d5ce30b99b85f7', 'hex'),
-        Buffer.from('5da1ab48fa824aa7daa68547abfaadad', 'hex'),
+        BigInt('0x2f04020b9c71fdb501d5ce30b99b85f7'),
+        BigInt('0x5da1ab48fa824aa7daa68547abfaadad'),
       ];
+
       // for (let i = 0; i < 2; i++) {
       //   seeds.push(seed);
       // }

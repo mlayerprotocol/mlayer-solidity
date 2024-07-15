@@ -71,7 +71,7 @@ contract Sentry is OwnableUpgradeable {
     }
 
     function initialize(address _address) public initializer {
-        __Ownable_init();
+        __Ownable_init(msg.sender);
         tokenContract = IERC20(_address);
         minStakable = 5000 * 10**18;
         calibrator = 10000;

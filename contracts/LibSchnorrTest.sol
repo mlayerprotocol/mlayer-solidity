@@ -157,7 +157,7 @@ contract LibSchnorrTest  {
             commitment
         );
        //  assertEq(ok, shouldBeOk);
-       // return ok;
+       return ok;
     }
     // function testFuzz_verifySignature_MultipleSigners2(
     //     uint256[] memory privKeys,

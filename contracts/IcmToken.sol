@@ -14,7 +14,7 @@ contract IcmToken is IERC20, Ownable {
     string public symbol = "ICMT";
     uint8 public decimals = 18;
 
-    constructor() Ownable() {
+    constructor() Ownable(msg.sender) {
         uint256 _totalSup = totalSupply;
         mint(msg.sender, _totalSup);
         totalSupply = _totalSup;
