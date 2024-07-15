@@ -17,8 +17,8 @@ async function main() {
   const IcmToken = await ethers.getContractFactory("IcmToken");
   const _icmToken = await IcmToken.deploy();
 
-  const Stake = await ethers.getContractFactory("Stake");
-  const _stake = await Stake.deploy(_icmToken.address);
+  const Validator = await ethers.getContractFactory("Validator");
+  const _stake = await Validator.deploy(_icmToken.address);
   await _stake.setMinStake("100000000000000000000");
   await _stake.registerNodeAccount("0x59fD8f94dDd1Fe6066d300F74afD5E3a01970e43");
   await _icmToken.approve(_stake.address, "200000000000000000000");

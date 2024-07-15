@@ -4,7 +4,7 @@ async function main() {
 
   const [owner, otherAccount] = await ethers.getSigners();
   const TOKEN_ADDRESS = "0xdA8b9F796676Bd2E3aC47bE5a0EdB507d17B632a";
-  const Stake = await ethers.getContractFactory("Stake");
+  const Stake = await ethers.getContractFactory("Validator");
   const _stake = await upgrades.deployProxy(
     Stake,
     [
@@ -14,7 +14,7 @@ async function main() {
       initializer: 'initialize',
     }
   );
-  console.log('Stake Deployed to : ', _stake.address)
+  console.log('Validator Deployed to : ', _stake.address)
   return { _stake, owner, otherAccount };
 }
 

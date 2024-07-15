@@ -5,7 +5,7 @@ pragma solidity >=0.7.0 <0.9.0;
 import "./common/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-contract Stake is OwnableUpgradeable {
+contract Sentry is OwnableUpgradeable {
     mapping(address => uint256) public stakeBalance;
     mapping(address => address) public nodeAddresses;
     mapping(address => address) public stakeAddresses;
@@ -18,9 +18,6 @@ contract Stake is OwnableUpgradeable {
         uint256 tokenAmount;
         uint256 messageAmount;
     }
-
-    
-    
 
     event MessagePurchase(address indexed node, address indexed buyer, uint256 token, uint256 messages, bytes32 indexed nonce);
     event MessageTokenRate(address indexed node, uint256 rate);
@@ -73,11 +70,11 @@ contract Stake is OwnableUpgradeable {
         locked = false;
     }
 
-    
     function initialize(address _address) public initializer {
+        __Ownable_init();
         tokenContract = IERC20(_address);
         minStakable = 5000 * 10**18;
-        calibrator= 10000;
+        calibrator = 10000;
     }
 
     function stake(uint256 amount) public {
@@ -102,8 +99,8 @@ contract Stake is OwnableUpgradeable {
         }
         if(existingAlloctionIndex == -1){
             nodeAllocation[msg.sender].push(AllocationStruct({
-                price:  getMinStake(),
-                count:  amount/getMinStake()
+                price: getMinStake(),
+                count: amount/getMinStake()
             }));
         }else{
             nodeAllocation[msg.sender][uint(existingAlloctionIndex)].count += amount/getMinStake();
