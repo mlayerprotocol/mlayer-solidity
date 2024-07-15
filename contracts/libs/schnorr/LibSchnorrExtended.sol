@@ -112,7 +112,7 @@ library LibSchnorrExtended {
             // Note to keep aggSignature ∊ [0, Q).
             aggSignature = addmod(aggSignature, signatures[i], LibSecp256k1.Q());
         }
-console.log("AGGGGG", aggSignature);
+
         // BONUS: Make sure signature can be verified.
       
         // => The aggregated public key signs the message via the aggregated

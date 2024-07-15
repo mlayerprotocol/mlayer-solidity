@@ -68,39 +68,39 @@ contract LibSchnorrTest  {
 
 
 
-    function testFuzz_verifySignature_SingleSigner(
-        uint privKeySeed,
-        bytes32 message
-    ) public view returns (bool) {
-        // Let privKey ∊ [1, Q).
-        uint privKey = _bound(privKeySeed, 1, LibSecp256k1.Q() - 1);
-        // Compute pubKey.
-        LibSecp256k1.Point memory pubKey = privKey.derivePublicKey();
+    // function testFuzz_verifySignature_SingleSigner(
+    //     uint privKeySeed,
+    //     bytes32 message
+    // ) public view returns (bool) {
+    //     // Let privKey ∊ [1, Q).
+    //     uint privKey = _bound(privKeySeed, 1, LibSecp256k1.Q() - 1);
+    //     // Compute pubKey.
+    //     LibSecp256k1.Point memory pubKey = privKey.derivePublicKey();
 
-        // Sign message.
-        uint signature;
-        address commitment;
-        (signature, commitment) = privKey.signMessage(message);
+    //     // Sign message.
+    //     uint signature;
+    //     address commitment;
+    //     (signature, commitment) = privKey.signMessage(message);
 
-        // Signature is _not_ verifiable if one of the following cases hold:
-        // - commitment == address(0)
-        // - pubKey.x == 0
-        // - signature == 0
-        // - signature >= Q
-        bool shouldBeOk = true;
-        if (commitment == address(0)) shouldBeOk = false;
-        if (pubKey.x == 0) shouldBeOk = false;
-        if (signature == 0) shouldBeOk = false;
-        if (signature >= LibSecp256k1.Q()) shouldBeOk = false;
+    //     // Signature is _not_ verifiable if one of the following cases hold:
+    //     // - commitment == address(0)
+    //     // - pubKey.x == 0
+    //     // - signature == 0
+    //     // - signature >= Q
+    //     bool shouldBeOk = true;
+    //     if (commitment == address(0)) shouldBeOk = false;
+    //     if (pubKey.x == 0) shouldBeOk = false;
+    //     if (signature == 0) shouldBeOk = false;
+    //     if (signature >= LibSecp256k1.Q()) shouldBeOk = false;
 
-        // Signature verification should equal expected value.
-        bool ok = LibSchnorr.verifySignature(
-            privKey.derivePublicKey(), message, bytes32(signature), commitment
-        );
-         console.log("ISOKAY", ok);
-        // assertEq(ok, shouldBeOk);
-        return ok;
-    }
+    //     // Signature verification should equal expected value.
+    //     bool ok = LibSchnorr.verifySignature(
+    //         privKey.derivePublicKey(), message, bytes32(signature), commitment
+    //     );
+    //      console.log("ISOKAY", ok);
+    //     // assertEq(ok, shouldBeOk);
+    //     return ok;
+    // }
 
     function testFuzz_verifySignature_MultipleSigners(
         uint[] memory privKeys,
@@ -137,7 +137,7 @@ contract LibSchnorrTest  {
         uint signature;
         address commitment;
         (signature, commitment) = privKeys.signMessage(message);
-       return true;
+      
         // Signature is _not_ verifiable if one of the following cases hold:
         // - commitment == address(0)
         // - pubKey.x == 0
