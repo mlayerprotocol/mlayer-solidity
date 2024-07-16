@@ -12,18 +12,9 @@ contract Subnet is OwnableUpgradeable {
     bool public withdrawalEnabled;
     bool public locked;
     IERC20 tokenContract;
-
-    
-    
-
     uint256 public minStakable;
     uint256 public waitDuration;
     
-
-
-    
-    
-
 
 
     // Starts
@@ -80,24 +71,15 @@ contract Subnet is OwnableUpgradeable {
     }
 
     function stake( string memory subnetId, uint256 amount) public {
-        require(amount > 0, "You need to Stake at least some tokens");
+        require(amount > 0, "You need to stake the minimum amount of tokens");
         require(amount >= minStakable, "You need to stake more than the minimum stake");
         bytes memory bytesVal = abi.encodePacked(subnetId);
         StakeStruct memory stakeVal = StakeStruct(amount, block.timestamp);
         // uint256 length  = subnetBalances[bytesVal][msg.sender].length;
-
-
         subnetBalances[bytesVal][msg.sender].push(stakeVal);
-        
-
-        
-        
         tokenContract.transferFrom(msg.sender, address(this), amount);
         subnetStakerBalances[bytesVal][msg.sender] += amount;
         subnetBalance[bytesVal] += amount;
-
-
-        
         emit StakeEvent(msg.sender, stakeVal);
     }
 
@@ -130,11 +112,7 @@ contract Subnet is OwnableUpgradeable {
 
     function unStake(string memory subnetId) public noReentrancy {
         require(withdrawalEnabled, "Withdrawal is not enabled");
-        
-
-       
         require(getSubnetAccountBalance(subnetId, msg.sender) > 0, "Inadequate Withdrawal Balance");
-
         // bytes memory bytesVal = abi.encodePacked(subnetId);
         // tokenContract.transfer(msg.sender, stakeBalance[msg.sender]);
         // emit UnStakeEvent(
@@ -143,15 +121,11 @@ contract Subnet is OwnableUpgradeable {
         //     block.timestamp
         // );
         // stakeBalance[msg.sender] = 0;
-        
     }
 
     function withdrawableAmount() public pure returns (uint) {
-
         uint total;
-        
         return total;
-        
     }
 
     

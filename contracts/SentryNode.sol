@@ -4,11 +4,17 @@ pragma solidity >=0.7.0 <0.9.0;
 
 import "./common/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "./libs/mlayer/utils.sol";
+import {LibSchnorr} from "./libs/schnorr/LibSchnorr.sol";
+import {LibSecp256k1Extended} from "./libs/schnorr/LibSecp256k1Extended.sol";
 
 contract Sentry is OwnableUpgradeable {
     mapping(address => uint256) public stakeBalance;
     mapping(address => address) public nodeAddresses;
     mapping(address => address) public stakeAddresses;
+    mapping(uint => bytes) public licenceOperator;
+    mapping(uint => address) public licenceOwner;
+    
 
     
 
@@ -146,40 +152,93 @@ contract Sentry is OwnableUpgradeable {
         
     }
 
-    function registerNodeAccount(address nodeAddress) public noReentrancy {
-        require(
-            msg.sender != nodeAddress,
-            "Node address can not be equal to stake address"
-        );
-        require(
-            stakeAddresses[nodeAddress] == address(0),
-            "Node already exist"
-        );
+    struct RegistrationData {
+        bytes publicKey;
+        bytes nonce;
+        bytes signature;
+        bytes commitment;
+    }
 
-        bool success;
-        for (uint i = 0; i < nodeAllocation[msg.sender].length; i++) {
-            if(nodeAllocation[msg.sender][i].count > 0){
-                nodeAllocation[msg.sender][i].count -= 1;
-                // nodeAddresses[msg.sender] = nodeAddress;
-                stakeAddresses[nodeAddress] = msg.sender;
-                nodeAllocationIndexes[nodeAddress] = i;
-                stakerNodeAddresses[msg.sender].push(
-                    nodeAddress
-                );
-                success = true;
+    mapping(address => bytes[])  public nodesOwned;
+    mapping(bytes => address) public operatorsOwner;
 
-                if(nodeIdsRef[nodeAddress] == 0 ){
-                    nodeCount++;
-                    nodeIds[nodeCount] == nodeAddress;
-                    nodeIdsRef[nodeAddress] == nodeCount;
-                }
-                break;
-            }
+    function getRegistrationData(bytes memory data) public pure returns(RegistrationData memory regData) {
+         bytes memory part;
+         bytes memory part2;
+        (regData.publicKey, part) = MlayerUtils.split(data,  0x3A);
+        (regData.nonce,  part2) = MlayerUtils.split(part,  0x3A);
+        (regData.commitment,  regData.signature) = MlayerUtils.split(part2,  0x3A);
+        return regData;
+    }
+
+    function registerOperator(bytes calldata regDataBytes, uint[] memory licenses) public noReentrancy {
+         require(
+            stakeBalance[msg.sender] >= minStake,
+            "Not Authorized"
+        );
+        RegistrationData memory regData = getRegistrationData(regDataBytes);
+
+        // 1. check if caller is owner of license
+
+       
+
+        //check if caller is the first registrant
+        bytes32 hashSign = keccak256(abi.encodePacked(regData.Signature, regData.nonce));
+        address memory owner = operatorsOwner[regData.publicKey];
+        require(owner == address(0) || owner == msg.sender,  "Sentry/registerNodeAccount: Sentry node is registered to different account");
+        if (owner == address(0)) {
+            require(MlayerUtils.abs(block.timestamp - MlayerUtils.bytesToUint(regData.nonce)/1000) < 3600, "Sentry/registerNodeAccount: Nonce expired/invalid");
+            operatorsOwner[regData.publicKey] = msg.sender;
+            nodesOwned[msg.sender].push(regData.publicKey)
         }
-        require(
-            success,
-            "Inadequate Stake Amount"
+        
+        bytes32 dataHash = keccak256(abi.encodePacked(regData.nonce, block.chainid));
+         bool ok = LibSchnorr.verifySignature(
+           LibSecp256k1Extended.decompressPublicKey(regData.publicKey), dataHash, bytes32(regData.signature), MlayerUtils.bytesToAddress(regData.commitment)
         );
+        
+        require(ok, "Sentry/registerNodeAccount: invalid node signature");
+        // assign the licences to operator
+
+         // 2. check if any of the licences is already registered
+        for (uint i; i<licenses.length; i++; ) {
+            require(licenceOwner[licenses[i]]) = msg.sender;
+            require(licenceOperator[licenses[i]].length == 0, "Sentry/registerNodeAccount: licence already registerd");
+            licenceOperator[licenses[i]] = regData.publicKey;
+        }
+        // require(
+        //     msg.sender != nodeAddress,
+        //     "Node address can not be equal to stake address"
+        // );
+        // require(
+        //     stakeAddresses[nodeAddress] == address(0),
+        //     "Node already exist"
+        // ); 
+
+        // bool success;
+        // for (uint i = 0; i < nodeAllocation[msg.sender].length; i++) {
+        //     if(nodeAllocation[msg.sender][i].count > 0){
+        //         nodeAllocation[msg.sender][i].count -= 1;
+        //         // nodeAddresses[msg.sender] = nodeAddress;
+        //         stakeAddresses[nodeAddress] = msg.sender;
+        //         nodeAllocationIndexes[nodeAddress] = i;
+        //         stakerNodeAddresses[msg.sender].push(
+        //             nodeAddress
+        //         );
+        //         success = true;
+
+        //         if(nodeIdsRef[nodeAddress] == 0 ){
+        //             nodeCount++;
+        //             nodeIds[nodeCount] == nodeAddress;
+        //             nodeIdsRef[nodeAddress] == nodeCount;
+        //         }
+        //         break;
+        //     }
+        // }
+        // require(
+        //     success,
+        //     "Inadequate Stake Amount"
+        // );
     }
 
     function deRegisterNodeAccount(address nodeAddress) public noReentrancy {

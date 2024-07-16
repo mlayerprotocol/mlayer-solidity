@@ -32,6 +32,18 @@ describe('Stake', function () {
     //   ).to.equal(true);
     // });
 
+    it('Should decompress key', async function () {
+      const { schnorr } = await loadFixture(deployOneYearLockFixture);
+
+      await expect(
+        (
+          schnorr.testFuzz_DecompressPublicKey(
+            '0x02c4435e768b4bae8236eeba29dd113ed607813b4dc5419d33b9294f712ca79ff4'
+          ) as any
+        ).x
+      ).to.not.reverted;
+    });
+
     it('Should verify multiple aggregate signatures', async function () {
       const { schnorr } = await loadFixture(deployOneYearLockFixture);
       const hash = ethers.keccak256(Buffer.from('femi'));

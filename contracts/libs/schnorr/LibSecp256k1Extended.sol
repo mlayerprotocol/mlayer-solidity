@@ -28,6 +28,36 @@ library LibSecp256k1Extended {
 
     // -- API Functions --
 
+    function decompressPublicKey(bytes calldata compressedKey) internal pure returns (LibSecp256k1.Point memory point) {
+        require(compressedKey.length == 33, "Invalid compressed key length");
+        uint8 yBit = uint8(compressedKey[0]);
+        require(yBit == 0x02 || yBit == 0x03, "Invalid compressed key prefix");
+
+        uint x = uint256(bytes32(compressedKey[1:33]));
+
+        uint256 beta = addmod(mulmod(x, mulmod(x, x, P), P), 7, P);
+        uint y = modExp(beta, (P + 1) / 4, P);
+
+        // Check if the parity matches
+        if ((y % 2 == 0 && yBit != 0x02) || (y % 2 == 1 && yBit != 0x03)) {
+            y = P - y;
+        }
+        point.x = x;
+        point.y = y;
+    }
+
+    function modExp(uint256 base, uint256 exp, uint256 mod) internal pure returns (uint256) {
+        uint256 result = 1;
+        while (exp > 0) {
+            if (exp % 2 == 1) {
+                result = mulmod(result, base, mod);
+            }
+            base = mulmod(base, base, mod);
+            exp /= 2;
+        }
+        return result;
+    }
+
     function derivePublicKey(uint privKey)
         internal pure
         returns (LibSecp256k1.Point memory)
