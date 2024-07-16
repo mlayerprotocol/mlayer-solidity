@@ -5,15 +5,26 @@ pragma solidity >=0.7.0 <0.9.0;
 import "./common/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
+import {LibSchnorr} from "./libs/schnorr/LibSchnorr.sol";
+import {LibSecp256k1} from "./libs/schnorr/LibSecp256k1.sol";
+
+import {LibSchnorrExtended} from "./libs/schnorr/LibSchnorrExtended.sol";
+import {LibSecp256k1Extended} from "./libs/schnorr/LibSecp256k1Extended.sol";
+
 contract Subnet is OwnableUpgradeable {
     
     mapping(address => address) public stakeAddresses;
+    mapping(uint256 => address) public licenseAddresses;
+    mapping(address => uint256[]) public addressLicenses;
+
+    uint256 private licenseCounter = 1000; 
 
     bool public withdrawalEnabled;
     bool public locked;
     IERC20 tokenContract;
     uint256 public minStakable;
     uint256 public waitDuration;
+    uint256 public licensePrice;
     
 
 
@@ -33,6 +44,12 @@ contract Subnet is OwnableUpgradeable {
     struct OrderStruct{
         uint256 amount;
         uint256 timestamp;
+    }
+
+    struct RewardSubAmountStruct{
+        string subnetId;
+        uint256 amount;
+        
     }
 
 
@@ -65,6 +82,7 @@ contract Subnet is OwnableUpgradeable {
     function initialize(address _address) public initializer {
         tokenContract = IERC20(_address);
         minStakable = 5000 * 10**18;
+        licensePrice = 1000 * 10**18;
         __Ownable_init(msg.sender);
 
         
@@ -151,15 +169,61 @@ contract Subnet is OwnableUpgradeable {
     }
 
     function rewardValidator(
-        // string memory validator,
-         string memory subnetId, uint256 amount) public {
-        
-        bytes memory bytesVal = abi.encodePacked(subnetId);
-        require(getSubnetBalance(subnetId) >= amount, "Amount should not be greater than subnet balance");
-        subnetBalance[bytesVal] -= amount;
-        // subnetStakerBalances[bytesVal][msg.sender] -= amount;
-        tokenContract.transfer(msg.sender, amount);
+        bytes memory validator,
+        RewardSubAmountStruct[] memory subAmounts,
+        bytes memory message, 
+        address committment, 
+        uint256 signature,
+        bytes32 messageHash
+        ) public {
+            
 
+            // bool ok = LibSchnorr.verifySignature(
+            //     pubKeys.aggregatePublicKeys(),
+            //     message,
+            //     bytes32(signature),
+            //     commitment
+            // );
+
+
+
+        // bytes memory bytesVal = abi.encodePacked(subnetId);
+        // require(getSubnetBalance(subnetId) >= amount, "Amount should not be greater than subnet balance");
+        // subnetBalance[bytesVal] -= amount;
+        // subnetStakerBalances[bytesVal][msg.sender] -= amount;
+        // tokenContract.transfer(msg.sender, amount);
+
+        
+    }
+
+    function setLicenseAmount(uint256 _licensePrice) public onlyOwner {
+        licensePrice = _licensePrice;
+    }
+
+
+    function purchaseLicense(uint quantity) public  returns (uint256[] memory) { 
+
+        
+        uint256[] memory licenses = new uint256[](quantity);
+        
+        
+        tokenContract.transferFrom(msg.sender, address(this), licensePrice * quantity);
+        uint256 license = licenseCounter;
+        for (uint i = 0; i < licenses.length; i++) {
+            licenses[i] = license;
+            licenseAddresses[license] = msg.sender;
+            addressLicenses[msg.sender].push(license);
+            license++;
+            
+        }
+        licenseCounter = licenseCounter + quantity;
+        
+        
+
+        
+        
+        
+        return licenses;
         
     }
 
