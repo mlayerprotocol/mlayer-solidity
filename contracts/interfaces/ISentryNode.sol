@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.16;
+
+interface ISentryContract {
+   function licenseOperator(uint id) external returns (bytes memory);
+   function licenseOwner(uint id)  external returns (address);
+    function licenseCount()  external returns (uint);
+    function getLicencePrice()  external returns (uint);
+    function addressLicenses(address owner)  external returns (uint[] memory);
+    function addressLicenseCount(address owner)  external returns (uint);
+}
