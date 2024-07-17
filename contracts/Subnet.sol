@@ -33,6 +33,7 @@ contract Subnet is OwnableUpgradeable {
     mapping(bytes32 => uint256) public subnetBalance;
 
     mapping(address => mapping(bytes => int32)) public unstakeOrders;
+    mapping(address => uint) public proofProviderRewards;
 
 
     struct StakeStruct{
@@ -47,7 +48,7 @@ contract Subnet is OwnableUpgradeable {
 
     struct RewardClaimData{
         bytes subnetId;
-        uint256 amount;
+        uint256 count;
     }
 
     event StakeEvent(
@@ -142,7 +143,7 @@ contract Subnet is OwnableUpgradeable {
     function hashRewardData(RewardClaimData[] calldata claimData) pure internal returns(bytes32 hash) {
         uint len = claimData[0].subnetId.length;
         for (uint i; i < claimData.length; i++) {
-            hash = keccak256(abi.encodePacked(hash, claimData[i].subnetId[len-6:], claimData[i].amount));
+            hash = keccak256(abi.encodePacked(hash, claimData[i].subnetId[len-6:], uint64(claimData[i].count)));
         }
     }
 
@@ -156,12 +157,17 @@ contract Subnet is OwnableUpgradeable {
         uint256 signature,
         bytes32 messageHash
         ) public {
-            //1. loop through validators and hash the last 6 bytes of the subnetId and the amount. concatenate the previous hash
-            bytes32 hash = hashRewardData(claimData);
+            //1. loop through validators and hash the last 6 bytes of the subnetId and the amount with the previous hash
+            bytes32 dataHash = hashRewardData(claimData);
 
             //2. loop through signers starting from the last
-                // a. get the license count from the ISentry contract, if count is 0, (//TODO check if operator was recently updated if yes, then its likely valid  )
-                
+                // a. check if signer is present in list of valid signers for batch
+                // b. get the license count from the ISentry contract, if count is 0, throw error (//TODO check if operator was recently updated if yes, then its likely valid  )
+                // c. if all valid are valid operators, generate the aggregate public key
+            //3. keccak256 hash the concatenation of the dataHash, the cycle and the validators public key
+            //4. Verify the signature using the new hash as the message
+            //5. If its valid, deduct all amount from the subnate stake and credit the account associated with the validator
+            //6. Reward the operators that provided the proof
 
             // bool ok = LibSchnorr.verifySignature(
             //     pubKeys.aggregatePublicKeys(),

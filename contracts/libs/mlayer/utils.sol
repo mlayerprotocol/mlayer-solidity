@@ -57,4 +57,12 @@ function bytesToAddress(bytes memory b) public pure returns (address) {
         }
         return number;
     }
+
+    function lcg(uint256 seed) public pure returns (uint256) {
+        uint256 a = 1664525;
+        uint256 c = 1013904223;
+        uint256 m = 2 ** 32; // Equivalent to 1 << 32 in Go
+
+        return (a * seed + c) % m;
+    }
 }

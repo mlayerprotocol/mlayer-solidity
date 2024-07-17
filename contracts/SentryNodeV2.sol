@@ -9,6 +9,7 @@ import {LibSchnorr} from "./libs/schnorr/LibSchnorr.sol";
 import {LibSecp256k1Extended} from "./libs/schnorr/LibSecp256k1Extended.sol";
 
 contract SentryContract is OwnableUpgradeable {
+    mapping(uint => OperatorCycle[]) public licenseOperatorHistory; // used to track licence operator when its updated
     mapping(uint => bytes) public licenseOperator;
     mapping(uint256 => address) public licenseOwner;
     uint256 private licenseCount = 1000; 
@@ -17,6 +18,15 @@ contract SentryContract is OwnableUpgradeable {
     mapping(bytes => uint[]) public operatorLicenses;
     mapping(bytes => uint) public operatorLicenseCount;
 
+ struct RegistrationData {
+        bytes publicKey;
+        uint nonce;
+        bytes signature;
+        bytes commitment;
+    }
+
+    mapping(address => bytes[])  public operatorsOwned;
+    mapping(bytes => address) public operatorsOwner;
     // struct Order {
     //     address nodeAddress;
     //     address buyer;
@@ -34,7 +44,10 @@ contract SentryContract is OwnableUpgradeable {
 
     // mapping(address => uint256) public nodeTokenPerMessage;
     // mapping(address => mapping(address => uint256)) public userMessages;
-    
+    struct OperatorCycle {
+        bytes operator;
+        uint cycle;
+    }
 
     uint256 public totalAccounts;
     // mapping(uint256 => address) public stakerIds;
@@ -64,6 +77,26 @@ contract SentryContract is OwnableUpgradeable {
         uint256 timestamp
     );
   
+    
+
+    function getEpoch(uint blockNumber) public view returns (uint) {
+        if (blockNumber == 0) {
+            blockNumber = block.number;
+        }
+	    return blockNumber / 14400;
+    }
+
+    function getCycle(uint blockNumber)  public view returns (uint)  {
+        return 1 + (getEpoch(blockNumber) / 2);
+    }
+
+    function getCurrentEpoch() public view returns (uint) {
+       return getEpoch(0);
+    }
+
+    function getCurrentCycle()  public view returns (uint)  {
+       return getCycle(0);
+    }
 
     modifier noReentrancy() {
         require(!locked, "Contract Locked");
@@ -79,25 +112,35 @@ contract SentryContract is OwnableUpgradeable {
         calibrator = 10000;
     }
 
-
-    struct RegistrationData {
-        bytes publicKey;
-        bytes nonce;
-        bytes signature;
-        bytes commitment;
+    // gets the licence operator during a cycle.
+    // search the history. Note that assigning a licence operator only takes effect at the next cycle
+    function getLicenceOperator(uint license, uint cycle) public view returns (bytes memory operator) {
+        if (cycle == 0) {
+            return licenseOperator[license];
+        }
+       uint len = licenseOperatorHistory[license].length;
+        if (licenseOperatorHistory[license].length > 0) {
+            for(uint i = len-1; i>=0; i--) {
+                OperatorCycle memory opCycle = licenseOperatorHistory[license][i];
+                if (opCycle.cycle <= cycle) {
+                   return opCycle.operator;
+                }
+            }
+        } 
     }
 
-    mapping(address => bytes[])  public nodesOwned;
-    mapping(bytes => address) public operatorsOwner;
+
+   
 
     event Received(address, uint);
     receive() external payable {
         emit Received(msg.sender, msg.value);
     }
 
-     fallback() external payable {
+    fallback() external payable {
         emit Received(msg.sender, msg.value);
     }
+
     function purchaseLicense(uint quantity) public payable noReentrancy()  returns (uint256[] memory) { 
         uint256[] memory licenses = new uint256[](quantity);
         uint licenseCost =  getLicencePrice() * quantity;
@@ -131,8 +174,10 @@ contract SentryContract is OwnableUpgradeable {
     function getRegistrationData(bytes calldata data) public pure returns(RegistrationData memory regData) {
          bytes memory part;
          bytes memory part2;
+         bytes memory nonce;
         (regData.publicKey, part) = MlayerUtils.split(data,  0x3A);
-        (regData.nonce,  part2) = MlayerUtils.split(part,  0x3A);
+        (nonce,  part2) = MlayerUtils.split(part,  0x3A);
+        regData.nonce = MlayerUtils.bytesToUint(nonce);
         (regData.commitment,  regData.signature) = MlayerUtils.split(part2,  0x3A);
         return regData;
     }
@@ -157,23 +202,24 @@ contract SentryContract is OwnableUpgradeable {
         if (owner == address(0)) {
             require(MlayerUtils.abs(int256(block.timestamp - MlayerUtils.bytesToUint(regData.nonce)/1000)) < 3600, "Sentry/registerNodeAccount: Nonce expired/invalid");
             operatorsOwner[regData.publicKey] = msg.sender;
-            nodesOwned[msg.sender].push(regData.publicKey);
+            operatorsOwned[msg.sender].push(regData.publicKey);
         }
         
         bytes32 dataHash = keccak256(abi.encodePacked(regData.nonce, block.chainid));
         
-         bool ok = LibSchnorr.verifySignature(
+        bool ok = LibSchnorr.verifySignature(
            LibSecp256k1Extended.decompressPublicKey(regData.publicKey), dataHash, bytes32(regData.signature), MlayerUtils.bytesToAddress(regData.commitment)
         );
         
         require(ok, "Sentry/registerNodeAccount: invalid node signature");
         // assign the licences to operator
-
+        uint cycle = getCurrentCycle();
          // 2. check if any of the licences is already registered
         for (uint i; i < licenses.length; i++ ) {
             require(licenseOwner[licenses[i]]  == msg.sender, "Sentry/registerNodeAccount: not license owner");
             require(licenseOperator[licenses[i]].length == 0, "Sentry/registerNodeAccount: license already registered");
             licenseOperator[licenses[i]] = regData.publicKey;
+            licenseOperatorHistory[licenses[i]].push(OperatorCycle(regData.publicKey, cycle+1));
             operatorLicenses[regData.publicKey].push(licenses[i]);
         }
         operatorLicenseCount[regData.publicKey] += licenses.length;
