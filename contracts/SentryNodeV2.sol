@@ -200,7 +200,7 @@ contract SentryContract is OwnableUpgradeable {
         address owner = operatorsOwner[regData.publicKey];
         require(owner == address(0) || owner == msg.sender,  "Sentry/registerNodeAccount: Sentry node is registered to different account");
         if (owner == address(0)) {
-            require(MlayerUtils.abs(int256(block.timestamp - MlayerUtils.bytesToUint(regData.nonce)/1000)) < 3600, "Sentry/registerNodeAccount: Nonce expired/invalid");
+            require(MlayerUtils.abs(int256(block.timestamp - regData.nonce/1000)) < 3600, "Sentry/registerNodeAccount: Nonce expired/invalid");
             operatorsOwner[regData.publicKey] = msg.sender;
             operatorsOwned[msg.sender].push(regData.publicKey);
         }
