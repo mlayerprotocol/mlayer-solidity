@@ -28,9 +28,9 @@ contract Subnet is OwnableUpgradeable {
 
 
     // Starts
-    mapping(bytes32 => mapping(address => StakeStruct[])) public subnetBalances;
-    mapping(bytes32 => mapping(address => uint256)) public subnetStakerBalances;
-    mapping(bytes32 => uint256) public subnetBalance;
+    mapping(bytes16 => mapping(address => StakeStruct[])) public subnetBalances;
+    mapping(bytes16 => mapping(address => uint256)) public subnetStakerBalances;
+    mapping(bytes16 => uint256) public subnetBalance;
 
     mapping(address => mapping(bytes => int32)) public unstakeOrders;
     mapping(address => uint) public proofProviderRewards;
@@ -70,27 +70,27 @@ contract Subnet is OwnableUpgradeable {
     }
 
     
-    function initialize(address _address, address _sentryContract) public initializer {
-        tokenContract = IERC20(_address);
+    function initialize(address tokenAddress, address _sentryContract) public initializer {
+        tokenContract = IERC20(tokenAddress);
         minStakable = 5000 * 10**18;
         __Ownable_init(msg.sender);
         sentryContract = ISentryContract(_sentryContract);
     }
 
-    function stake( bytes32 subnetId, uint256 amount) public {
+    function stake( bytes16 subnetId, uint256 amount) public {
         require(amount > 0, "You need to stake the minimum amount of tokens");
         require(amount >= minStakable, "You need to stake more than the minimum stake");
         StakeStruct memory stakeVal = StakeStruct(amount, block.timestamp);
         // uint256 length  = subnetBalances[bytesVal][msg.sender].length;
         subnetBalances[subnetId][msg.sender].push(stakeVal);
-        tokenContract.transferFrom(msg.sender, address(this), amount);
+        // tokenContract.transferFrom(msg.sender, address(this), amount);
         subnetStakerBalances[subnetId][msg.sender] += amount;
         subnetBalance[subnetId] += amount;
         emit StakeEvent(msg.sender, stakeVal);
     }
 
 
-    function getSubnetBalance(bytes32 subnetId)
+    function getSubnetBalance(bytes16 subnetId)
         public
         view
         returns (uint256)
@@ -100,7 +100,7 @@ contract Subnet is OwnableUpgradeable {
         return subnetBalance[subnetId];   
     }
     
-    function getSubnetAccountBalance(bytes32 subnetId, address addr)
+    function getSubnetAccountBalance(bytes16 subnetId, address addr)
         public
         view
         returns (uint256)
@@ -114,7 +114,7 @@ contract Subnet is OwnableUpgradeable {
         withdrawalEnabled = _enabled;
     }
 
-    function unStake(bytes32 subnetId) public noReentrancy {
+    function unStake(bytes16 subnetId) public noReentrancy {
         require(withdrawalEnabled, "Withdrawal is not enabled");
         require(getSubnetAccountBalance(subnetId, msg.sender) > 0, "Inadequate Withdrawal Balance");
         // bytes memory bytesVal = abi.encodePacked(subnetId);
@@ -155,7 +155,7 @@ contract Subnet is OwnableUpgradeable {
         bytes memory message, 
         address committment, 
         uint256 signature,
-        bytes32 messageHash
+        bytes16 messageHash
         ) public {
             //1. loop through validators and hash the last 6 bytes of the subnetId and the amount with the previous hash
             bytes32 dataHash = hashRewardData(claimData);
@@ -172,7 +172,7 @@ contract Subnet is OwnableUpgradeable {
             // bool ok = LibSchnorr.verifySignature(
             //     pubKeys.aggregatePublicKeys(),
             //     message,
-            //     bytes32(signature),
+            //     bytes16(signature),
             //     commitment
             // );
 

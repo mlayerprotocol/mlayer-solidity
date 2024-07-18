@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-library MlayerUtils {
-function split(bytes memory data, bytes1 delimiter) internal pure returns (bytes memory p1, bytes memory p2) {
-    uint index;
+library MLUtils {
+    function split(bytes memory data, bytes1 delimiter) internal pure returns (bytes memory p1, bytes memory p2) {
+        uint index;
         for (uint256 i = 0; i < data.length; i++) {
             if (data[i] == delimiter) {
                 index = i;
@@ -30,7 +30,7 @@ function split(bytes memory data, bytes1 delimiter) internal pure returns (bytes
 
     }
 
-function bytesToAddress(bytes memory b) public pure returns (address) {
+    function bytesToAddress(bytes memory b) internal pure returns (address) {
         require(b.length == 20, "Invalid address length");
         address addr;
         assembly {
@@ -39,7 +39,7 @@ function bytesToAddress(bytes memory b) public pure returns (address) {
         return addr;
     }
 
-    function abs(int256 value) public pure returns (uint256) {
+    function abs(int256 value) internal pure returns (uint256) {
         // Check if the value is negative
         if (value < 0) {
             // Return the negation of the value (convert to positive)
@@ -50,7 +50,7 @@ function bytesToAddress(bytes memory b) public pure returns (address) {
         }
     }
     
-    function bytesToUint(bytes memory b) public pure returns (uint256) {
+    function bytesToUint(bytes memory b) internal pure returns (uint256) {
         uint256 number;
         for (uint256 i = 0; i < b.length; i++) {
             number = number * 256 + uint8(b[i]);

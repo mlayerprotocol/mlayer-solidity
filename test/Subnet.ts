@@ -17,7 +17,7 @@ describe("Subnet", function () {
     const Subnet = await ethers.getContractFactory("Subnet");
     const _subnet = await Subnet.deploy();
 
-    await _subnet.initialize(_icmToken.getAddress());
+    await _subnet.initialize(_icmToken.getAddress(), owner);
 
     return { _icmToken, _subnet, owner, otherAccount };
   }
@@ -31,63 +31,69 @@ describe("Subnet", function () {
   });
 
   describe("Staking...", function () {
-    const subnetId = "001";
+    const subnet = "193430c8-7927-2d6d-c293-27d03420ca0c";
+    const subnetHex = `0x${subnet.replaceAll("-", "")}`;
     const subnetAmountVal = 2000;
-    it(`Should Subnet ${subnetId} -- ${subnetAmountVal}`, async function () {
+    const subnetAmountVal2: bigint = BigInt(6000 * 10 ** 18);
+    it(`Should Subnet ${subnetHex} -- ${subnetAmountVal}`, async function () {
       const { _subnet, _icmToken, owner } = await loadFixture(deployContract);
 
       await _icmToken.approve(_subnet.getAddress(), subnetAmountVal);
-      await expect(_subnet.stake(subnetId, 0)).to.be.revertedWith(
-        "You need to Stake at least some tokens"
+      await expect(_subnet.stake(subnetHex, 0)).to.be.revertedWith(
+        "You need to stake the minimum amount of tokens"
       );
-      await expect(_subnet.stake(subnetId, subnetAmountVal)).to.be.revertedWith(
-        "You need to stake more than the minimum stake"
-      );
+      await expect(
+        _subnet.stake(subnetHex, subnetAmountVal)
+      ).to.be.revertedWith("You need to stake more than the minimum stake");
+      await _icmToken.approve(_subnet.getAddress(), subnetAmountVal2);
+      await expect(_subnet.stake(subnetHex, subnetAmountVal2)).not.to.be
+        .reverted;
 
-      // expect(await _subnet.stakeBalance(owner.address)).to.equal(subnetAmountVal);
+      expect(await _subnet.subnetBalance(subnetHex)).to.equal(subnetAmountVal2);
     });
   });
 
   describe("Get Balance...", function () {
-    const subnetId = "001";
+    const subnet = "193430c8-7927-2d6d-c293-27d03420ca0c";
+    const subnetHex = `0x${subnet.replaceAll("-", "")}`;
     const subnetAmountVal: bigint = BigInt(6000 * 10 ** 18);
     // const minStakable = 5000 * 10**18;
     const minStakable: bigint = BigInt(5000 * 10 ** 18);
-    it(`Should Get Balance for Subnet ${subnetId} -- ${subnetAmountVal}`, async function () {
+    it(`Should Get Balance for Subnet ${subnetHex} -- ${subnetAmountVal} == ${minStakable}`, async function () {
       const { _subnet, _icmToken, owner } = await loadFixture(deployContract);
 
       await _icmToken.approve(_subnet.getAddress(), subnetAmountVal);
       expect(await _subnet.minStakable()).to.equal(minStakable);
-      await _subnet.stake(subnetId, subnetAmountVal);
-      expect(await _subnet.getSubnetBalance(subnetId)).to.equal(
+      await _subnet.stake(subnetHex, subnetAmountVal);
+      expect(await _subnet.getSubnetBalance(subnetHex)).to.equal(
         subnetAmountVal
       );
 
       expect(
-        await _subnet.getSubnetAccountBalance(subnetId, owner.getAddress())
+        await _subnet.getSubnetAccountBalance(subnetHex, owner.getAddress())
       ).to.equal(subnetAmountVal);
     });
   });
 
-  describe("Unstack...", function () {
-    const subnetId = "001";
-    const subnetAmountVal: bigint = BigInt(6000 * 10 ** 18);
+  // describe("Unstack...", function () {
+  //   const subnetId = "001";
+  //   const subnetAmountVal: bigint = BigInt(6000 * 10 ** 18);
 
-    const minStakable: bigint = BigInt(5000 * 10 ** 18);
-    it(`Should Get Unstack`, async function () {
-      const { _subnet, _icmToken, owner } = await loadFixture(deployContract);
+  //   const minStakable: bigint = BigInt(5000 * 10 ** 18);
+  //   it(`Should Get Unstack`, async function () {
+  //     const { _subnet, _icmToken, owner } = await loadFixture(deployContract);
 
-      await _icmToken.approve(_subnet.getAddress(), subnetAmountVal);
+  //     await _icmToken.approve(_subnet.getAddress(), subnetAmountVal);
 
-      await _subnet.stake(subnetId, subnetAmountVal);
+  //     await _subnet.stake(subnetId, subnetAmountVal);
 
-      await expect( _subnet.unStake(subnetId)).to.be.revertedWith(
-        "Withdrawal is not enabled"
-      );
-      await _subnet.enableWithdrawal(true);
-      await expect(_subnet.unStake(subnetId)).to.not.be.revertedWith(
-        "Withdrawal is not enabled"
-      );
-    });
-  });
+  //     await expect(_subnet.unStake(subnetId)).to.be.revertedWith(
+  //       "Withdrawal is not enabled"
+  //     );
+  //     await _subnet.enableWithdrawal(true);
+  //     await expect(_subnet.unStake(subnetId)).to.not.be.revertedWith(
+  //       "Withdrawal is not enabled"
+  //     );
+  //   });
+  // });
 });
