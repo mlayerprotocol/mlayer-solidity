@@ -74,6 +74,7 @@ contract LibSchnorrTest  {
     ) public view returns (bool) {
         // Let privKey ∊ [1, Q).
         uint privKey = _bound(privKeySeed, 1, LibSecp256k1.Q() - 1);
+        console.log("PRIVKEY", privKey);
         // Compute pubKey.
         LibSecp256k1.Point memory pubKey = privKey.derivePublicKey();
 
@@ -81,7 +82,7 @@ contract LibSchnorrTest  {
         uint signature;
         address commitment;
         (signature, commitment) = privKey.signMessage(message);
-
+        console.log("SignatureSingle:", signature);
         // Signature is _not_ verifiable if one of the following cases hold:
         // - commitment == address(0)
         // - pubKey.x == 0
@@ -93,6 +94,7 @@ contract LibSchnorrTest  {
         if (signature == 0) shouldBeOk = false;
         if (signature >= LibSecp256k1.Q()) shouldBeOk = false;
 
+        console.log("COMMITMENT--->", commitment);
         // Signature verification should equal expected value.
         bool ok = LibSchnorr.verifySignature(
             privKey.derivePublicKey(), message, bytes32(signature), commitment

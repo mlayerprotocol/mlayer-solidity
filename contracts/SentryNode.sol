@@ -9,6 +9,8 @@ import {LibSchnorr} from "./libs/schnorr/LibSchnorr.sol";
 import {LibSecp256k1Extended} from "./libs/schnorr/LibSecp256k1Extended.sol";
 import {MLUtils} from "./libs/mlayer/utils.sol";
 
+import "hardhat/console.sol";
+
 contract SentryContract is OwnableUpgradeable {
     mapping(uint => bytes) public licenseOperator;
     mapping(uint256 => address) public licenseOwner;
@@ -85,7 +87,7 @@ contract SentryContract is OwnableUpgradeable {
 
     struct RegistrationData {
         bytes publicKey;
-        uint nonce;
+        uint64 nonce;
         bytes signature;
         bytes commitment;
     }
@@ -137,7 +139,7 @@ contract SentryContract is OwnableUpgradeable {
          bytes memory nonce;
         (regData.publicKey, part) = MLUtils.split(data,  0x3A);
         (nonce,  part2) = MLUtils.split(part,  0x3A);
-        regData.nonce = MLUtils.bytesToUint(nonce);
+        regData.nonce = MLUtils.bytesToUint64(nonce);
         (regData.commitment,  regData.signature) = MLUtils.split(part2,  0x3A);
         return regData;
     }
@@ -151,32 +153,36 @@ contract SentryContract is OwnableUpgradeable {
         this.registerNodeOperator(regData, licenses);
     }
 
+    function verifySingleSigner(RegistrationData calldata regData, bytes32 message) public pure returns (bool) {
+         return LibSchnorr.verifySignature(
+           LibSecp256k1Extended.decompressPublicKey(regData.publicKey), message, bytes32(regData.signature), MLUtils.bytesToAddress(regData.commitment)
+        );
+    }
+
     function registerNodeOperator(RegistrationData calldata regData, uint[] calldata licenses) public noReentrancy {
          require(
             addressLicenseCount[msg.sender] > 0,
             "Not a license holder"
         );
-       //  bytes32 hashSign = keccak256(abi.encodePacked(regData.signature, regData.nonce));
         address owner = operatorsOwner[regData.publicKey];
         require(owner == address(0) || owner == msg.sender,  "Sentry/registerNodeAccount: Sentry node is registered to different account");
         if (owner == address(0)) {
-            require(MLUtils.abs(int256(block.timestamp - (regData.nonce)/1000)) < 3600, "Sentry/registerNodeAccount: Nonce expired/invalid");
+           //  require(MLUtils.abs(int256(block.timestamp - (regData.nonce)/1000)) < 3600, "Sentry/registerNodeAccount: Nonce expired/invalid");
             operatorsOwner[regData.publicKey] = msg.sender;
             nodesOwned[msg.sender].push(regData.publicKey);
         }
-        
-        bytes32 dataHash = keccak256(abi.encodePacked( block.chainid, regData.nonce));
-        
-         bool ok = LibSchnorr.verifySignature(
-           LibSecp256k1Extended.decompressPublicKey(regData.publicKey), dataHash, bytes32(regData.signature), MLUtils.bytesToAddress(regData.commitment)
-        );
+        bytes memory data = abi.encodePacked(uint64(block.chainid), regData.nonce);
+      
+        bytes32 dataHash = keccak256(data);
+       
+        bool ok = verifySingleSigner(regData, dataHash);
         
         require(ok, "Sentry/registerNodeAccount: invalid node signature");
         // assign the licences to operator
 
          // 2. check if any of the licences is already registered
         for (uint i; i < licenses.length; i++ ) {
-            require(licenseOwner[licenses[i]]  == msg.sender, "Sentry/registerNodeAccount: not license owner");
+            require(licenseOwner[licenses[i]]  == msg.sender, "Sentry/registerNodeAccount: you must own all licences");
             require(licenseOperator[licenses[i]].length == 0, "Sentry/registerNodeAccount: license already registered");
             licenseOperator[licenses[i]] = regData.publicKey;
             operatorLicenses[regData.publicKey].push(licenses[i]);

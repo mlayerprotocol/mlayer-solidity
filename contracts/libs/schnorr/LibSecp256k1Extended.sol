@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
+import "hardhat/console.sol";
 
 
 import {LibSecp256k1} from "./LibSecp256k1.sol";
@@ -44,6 +45,7 @@ library LibSecp256k1Extended {
         }
         point.x = x;
         point.y = y;
+        console.log("XXXXXX", x, y);
     }
 
     function modExp(uint256 base, uint256 exp, uint256 mod) internal pure returns (uint256) {

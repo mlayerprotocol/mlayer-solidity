@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
-import "hardhat/console.sol";
-// import {console2} from "forge-std/console2.sol";
-// import {StdStyle} from "forge-std/StdStyle.sol";
 
 import {LibSecp256k1} from "./LibSecp256k1.sol";
 
@@ -30,6 +27,7 @@ library LibSchnorrExtended {
 
         // 1. Select secure nonce.
         uint nonce = deriveNonce(privKey, message);
+       
 
         // 2. Compute noncePubKey.
         LibSecp256k1.Point memory noncePubKey = computeNoncePublicKey(nonce);
@@ -39,22 +37,9 @@ library LibSchnorrExtended {
 
         // 4. Construct challenge.
         bytes32 challenge = constructChallenge(pubKey, message, commitment);
-
         // 5. Compute signature.
         uint signature = computeSignature(privKey, nonce, challenge);
-        // console.log("Signature:", signature);
-        // // BONUS: Make sure signature can be verified.
-        // bool ok = verifySignature(pubKey, message, bytes32(signature), commitment);
-        // if (!ok) {
-        //     console.log(
-                
-        //             "[INTERNAL ERROR] LibSchnorrExtended: could not verify own signature"
-                
-        //     );
-        // }
-
-        // => The public key signs the message via the signature and
-        //    commitment.
+        
         return (signature, commitment);
     }
 
@@ -94,8 +79,7 @@ library LibSchnorrExtended {
 
         // 6. Construct challenge.
         bytes32 challenge = constructChallenge(aggPubKey, message, commitment);
-        console.log("CHallange", uint(challenge));
-
+        
         // 7. Collect signatures from signers.
         uint[] memory signatures = new uint[](privKeys.length);
         for (uint i; i < privKeys.length; i++) {
@@ -193,11 +177,9 @@ library LibSchnorrExtended {
         require(pubKeys.length != 0);
 
         LibSecp256k1.JacobianPoint memory aggPubKey = pubKeys[0].toJacobian();
-  // console.log("JACOBIAN BEFORE", aggPubKey.x, aggPubKey.y, aggPubKey.z);
-        for (uint i = 1; i < pubKeys.length; i++) {
+       for (uint i = 1; i < pubKeys.length; i++) {
             aggPubKey.addAffinePoint(pubKeys[i]);
         }
-      console.log("JACOBIAN AFTER", aggPubKey.x, aggPubKey.y, aggPubKey.z);
         return aggPubKey.toAffine();
     }
 
@@ -205,13 +187,12 @@ library LibSchnorrExtended {
         LibSecp256k1.Point memory pubKey,
         bytes32 message,
         address commitment
-    ) internal view returns (bytes32) {
+    ) internal pure returns (bytes32) {
         // e = H(Pₓ ‖ Pₚ ‖ m ‖ Rₑ) mod Q
        bytes memory b = abi.encodePacked(
                         pubKey.x, uint8(pubKey.yParity()), message, commitment
                     );
         bytes32 hash = keccak256(b);
-          console.log("PARITY",uint(hash), uint8(pubKey.yParity()), commitment);
         return bytes32(
             uint(
                 hash

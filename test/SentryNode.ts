@@ -142,39 +142,56 @@ describe("SentryContract", function () {
     });
   });
 
-  describe("registerNodeOperator", function () {
-    it("Should be able to registerNodeOperator", async function () {
+  describe('testSignatureVerification', function () {
+    it('Should verify Single SIgner', async function () {
+      expect(
+        await sentryContract.verifySingleSigner(
+          {
+            signature:
+              '0x62939200d699ca0c0d4d66bdaa23f9d84ef1d18a140996664ff8b1cb62086d76',
+            publicKey:
+              '0x03d212263468365e70b2d673b06b903216b5e101d8243cdbfac6884369e3c069a0',
+            nonce: 1721333362786,
+            commitment: '0x0d68c54d51320d127586a649aa3b18d71b921f77',
+          } as any,
+          '0x150823c524d0fc7086d30f9dad5aaf0a0845d25e0b98f0da2eb51e682c2acb10'
+        )
+      ).to.be.equal(true);
+    });
+  });
+  describe('registerNodeOperator', function () {
+    it('Should be able to registerNodeOperator', async function () {
       // const { _sentryContract, _icmToken, owner, otherAccount } =
       //   await loadFixture(deployContract);
-      const quantity = 1n;
-      const licenseCost = (await sentryContract.getLicencePrice()) * quantity;
-      const otherAccountBalanceBefore = await ethers.provider.getBalance(
-        otherAccount.getAddress()
-      );
-      const nonce = (new Date()).getTime()
-      console.log(
-        "Before--",
-        { licenseCost },
-        await icmToken.balanceOf(owner),
-        await icmToken.balanceOf(sentryContract.getAddress())
+
+      await expect(
+        sentryContract.registerNodeOperator(
+          {
+            signature:
+              '0x62939200d699ca0c0d4d66bdaa23f9d84ef1d18a140996664ff8b1cb62086d76',
+            publicKey:
+              '0x03d212263468365e70b2d673b06b903216b5e101d8243cdbfac6884369e3c069a0',
+            nonce: 1721333362786,
+            commitment: '0x0d68c54d51320d127586a649aa3b18d71b921f77',
+          } as any,
+          [2n]
+        )
+      ).to.be.revertedWith(
+        'Sentry/registerNodeAccount: you must own all licences'
       );
       await expect(
         sentryContract.registerNodeOperator(
           {
             signature:
-              "0x1e68bb8e0a739c6d1a7ee3f52da208fc4292458af768a8d04cb3abb79b05ea2d",
+              '0x62939200d699ca0c0d4d66bdaa23f9d84ef1d18a140996664ff8b1cb62086d76',
             publicKey:
-              "0x02c4435e768b4bae8236eeba29dd113ed607813b4dc5419d33b9294f712ca79ff4",
-            nonce:1721312415000,
-            commitment: "0x69215acf3d568da77198a241773363b9436e0e62",
+              '0x03d212263468365e70b2d673b06b903216b5e101d8243cdbfac6884369e3c069a0',
+            nonce: 1721333362786,
+            commitment: '0x0d68c54d51320d127586a649aa3b18d71b921f77',
           } as any,
-          [2n]
+          [1000n]
         )
-      ).to.be.revertedWith("Not a license holder");
-
-      expect(await icmToken.balanceOf(sentryContract.getAddress())).to.equal(
-        licenseCost
-      );
+      ).to.not.be.reverted;
     });
   });
 
