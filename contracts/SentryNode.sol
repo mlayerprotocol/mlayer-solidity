@@ -77,7 +77,7 @@ contract SentryContract is OwnableUpgradeable {
     function initialize(address _address) public initializer {
         __Ownable_init(msg.sender);
         tokenContract = IERC20(_address);
-        startNodePrice = 5000 * 10**18;
+        startNodePrice = 1 * 10**15;
         calibrator = 10000;
         licenseCount = initLicenseCount;
     }
@@ -85,7 +85,7 @@ contract SentryContract is OwnableUpgradeable {
 
     struct RegistrationData {
         bytes publicKey;
-        bytes nonce;
+        uint nonce;
         bytes signature;
         bytes commitment;
     }
@@ -134,8 +134,10 @@ contract SentryContract is OwnableUpgradeable {
     function getRegistrationData(bytes calldata data) public pure returns(RegistrationData memory regData) {
          bytes memory part;
          bytes memory part2;
+         bytes memory nonce;
         (regData.publicKey, part) = MLUtils.split(data,  0x3A);
-        (regData.nonce,  part2) = MLUtils.split(part,  0x3A);
+        (nonce,  part2) = MLUtils.split(part,  0x3A);
+        regData.nonce = MLUtils.bytesToUint(nonce);
         (regData.commitment,  regData.signature) = MLUtils.split(part2,  0x3A);
         return regData;
     }
@@ -158,12 +160,12 @@ contract SentryContract is OwnableUpgradeable {
         address owner = operatorsOwner[regData.publicKey];
         require(owner == address(0) || owner == msg.sender,  "Sentry/registerNodeAccount: Sentry node is registered to different account");
         if (owner == address(0)) {
-            require(MLUtils.abs(int256(block.timestamp - MLUtils.bytesToUint(regData.nonce)/1000)) < 3600, "Sentry/registerNodeAccount: Nonce expired/invalid");
+            require(MLUtils.abs(int256(block.timestamp - (regData.nonce)/1000)) < 3600, "Sentry/registerNodeAccount: Nonce expired/invalid");
             operatorsOwner[regData.publicKey] = msg.sender;
             nodesOwned[msg.sender].push(regData.publicKey);
         }
         
-        bytes32 dataHash = keccak256(abi.encodePacked(regData.nonce, block.chainid));
+        bytes32 dataHash = keccak256(abi.encodePacked( block.chainid, regData.nonce));
         
          bool ok = LibSchnorr.verifySignature(
            LibSecp256k1Extended.decompressPublicKey(regData.publicKey), dataHash, bytes32(regData.signature), MLUtils.bytesToAddress(regData.commitment)

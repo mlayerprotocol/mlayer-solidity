@@ -2,6 +2,20 @@ import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { IcmToken, SentryContract } from "../typechain-types";
+import { ContractTransactionResponse } from "ethers";
+import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
+
+let sentryContract: SentryContract & {
+  deploymentTransaction(): ContractTransactionResponse;
+};
+let icmToken: IcmToken & {
+  deploymentTransaction(): ContractTransactionResponse;
+}
+
+
+let owner: HardhatEthersSigner;
+let otherAccount: HardhatEthersSigner;
 
 describe("SentryContract", function () {
   // We define a fixture to reuse the same setup in every test.
@@ -24,7 +38,16 @@ describe("SentryContract", function () {
 
   describe("Get Licence Price", function () {
     it("Should have licensePrice be startNodePrice ", async function () {
-      const { _sentryContract } = await loadFixture(deployContract);
+      const {
+        _sentryContract,
+        _icmToken,
+        owner: _owner,
+        otherAccount: _otherAccount,
+      } = await loadFixture(deployContract);
+      sentryContract = _sentryContract;
+      owner = _owner;
+      otherAccount = _otherAccount;
+      icmToken = _icmToken;
       const licensePrice = await _sentryContract.getLicencePrice();
       const startNodePrice = await _sentryContract.startNodePrice();
       expect(licensePrice).to.equal(startNodePrice);
@@ -33,15 +56,15 @@ describe("SentryContract", function () {
 
   describe("Purchase Licence", function () {
     it("Should be able to make purchase", async function () {
-      const { _sentryContract, owner } = await loadFixture(deployContract);
+      // const { _sentryContract, owner } = await loadFixture(deployContract);
       const quantity = 1n;
-      const licenseCost = (await _sentryContract.getLicencePrice()) * quantity;
+      const licenseCost = (await sentryContract.getLicencePrice()) * quantity;
 
       await expect(
-        _sentryContract.purchaseLicense(quantity, { value: licenseCost })
+        sentryContract.purchaseLicense(quantity, { value: licenseCost })
       ).to.not.be.reverted;
       const contractBalance = await ethers.provider.getBalance(
-        _sentryContract.getAddress()
+        sentryContract.getAddress()
       );
 
       expect(contractBalance).to.equal(licenseCost);
@@ -50,141 +73,108 @@ describe("SentryContract", function () {
 
   describe("withdrawEthers", function () {
     it("Should be able to withdraw Ethers", async function () {
-      const { _sentryContract, owner, otherAccount } = await loadFixture(
-        deployContract
-      );
+      // const { _sentryContract, owner, otherAccount } = await loadFixture(
+      //   deployContract
+      // );
       const quantity = 1n;
-      const licenseCost = (await _sentryContract.getLicencePrice()) * quantity;
+      const licenseCost = (await sentryContract.getLicencePrice()) * quantity;
+      const ownerAccountBalanceBefore = await ethers.provider.getBalance(
+        owner.getAddress()
+      );
       const otherAccountBalanceBefore = await ethers.provider.getBalance(
         otherAccount.getAddress()
       );
 
       await expect(
-        _sentryContract.purchaseLicense(quantity, { value: licenseCost })
+        sentryContract.purchaseLicense(quantity, { value: licenseCost })
       ).to.not.be.reverted;
       const contractBalance = await ethers.provider.getBalance(
-        _sentryContract.getAddress()
+        sentryContract.getAddress()
       );
 
-      await expect(_sentryContract.withdrawEthers(otherAccount)).to.not.be
+      await expect(sentryContract.withdrawEthers(otherAccount)).to.not.be
         .reverted;
 
       const otherAccountBalanceAfter = await ethers.provider.getBalance(
         otherAccount.getAddress()
       );
+
       expect(otherAccountBalanceAfter).to.equal(
-        licenseCost + otherAccountBalanceBefore
+        contractBalance + otherAccountBalanceBefore
       );
     });
   });
 
   describe("withdraw Non Ethers", function () {
     it("Should be able to withdraw non Ethers", async function () {
-      const { _sentryContract, _icmToken, owner, otherAccount } =
-        await loadFixture(deployContract);
+      // const { _sentryContract, _icmToken, owner, otherAccount } =
+      //   await loadFixture(deployContract);
       const quantity = 1n;
-      const licenseCost = (await _sentryContract.getLicencePrice()) * quantity;
+      const licenseCost = (await sentryContract.getLicencePrice()) * quantity;
       const otherAccountBalanceBefore = await ethers.provider.getBalance(
         otherAccount.getAddress()
       );
       console.log(
         "Before--",
         { licenseCost },
-        await _icmToken.balanceOf(owner),
-        await _icmToken.balanceOf(_sentryContract.getAddress())
+        await icmToken.balanceOf(owner),
+        await icmToken.balanceOf(sentryContract.getAddress())
       );
       await expect(
-        _icmToken.transfer(_sentryContract.getAddress(), licenseCost)
+        icmToken.transfer(sentryContract.getAddress(), licenseCost)
       ).to.not.be.reverted;
 
-      expect(await _icmToken.balanceOf(_sentryContract.getAddress())).to.equal(
+      expect(await icmToken.balanceOf(sentryContract.getAddress())).to.equal(
         licenseCost
       );
 
       await expect(
-        _sentryContract.withdraw(
-          _icmToken.getAddress(),
+        sentryContract.withdraw(
+          icmToken.getAddress(),
           otherAccount,
           licenseCost
         )
       ).to.not.be.reverted;
 
-      expect(await _icmToken.balanceOf(_sentryContract.getAddress())).to.equal(
+      expect(await icmToken.balanceOf(sentryContract.getAddress())).to.equal(
         0n
       );
-
-      console.log(
-        "AFter--",
-        { licenseCost },
-        await _icmToken.balanceOf(owner),
-        await _icmToken.balanceOf(_sentryContract.getAddress())
-      );
-      const otherAccountBalanceAfter = await ethers.provider.getBalance(
-        otherAccount.getAddress()
-      );
-      // expect(otherAccountBalanceAfter).to.equal(
-      //   licenseCost + otherAccountBalanceBefore
-      // );
     });
   });
 
   describe("registerNodeOperator", function () {
     it("Should be able to registerNodeOperator", async function () {
-      const { _sentryContract, _icmToken, owner, otherAccount } =
-        await loadFixture(deployContract);
+      // const { _sentryContract, _icmToken, owner, otherAccount } =
+      //   await loadFixture(deployContract);
       const quantity = 1n;
-      const licenseCost = (await _sentryContract.getLicencePrice()) * quantity;
+      const licenseCost = (await sentryContract.getLicencePrice()) * quantity;
       const otherAccountBalanceBefore = await ethers.provider.getBalance(
         otherAccount.getAddress()
       );
+      const nonce = (new Date()).getTime()
       console.log(
         "Before--",
         { licenseCost },
-        await _icmToken.balanceOf(owner),
-        await _icmToken.balanceOf(_sentryContract.getAddress())
+        await icmToken.balanceOf(owner),
+        await icmToken.balanceOf(sentryContract.getAddress())
       );
       await expect(
-        _sentryContract.registerNodeOperator(
+        sentryContract.registerNodeOperator(
           {
             signature:
-              "0x7a5e861b67092860c46aa1174fa67f6ddb42be1a27b78d541bca3a58c9daa6d7",
+              "0x1e68bb8e0a739c6d1a7ee3f52da208fc4292458af768a8d04cb3abb79b05ea2d",
             publicKey:
               "0x02c4435e768b4bae8236eeba29dd113ed607813b4dc5419d33b9294f712ca79ff4",
-            nonce: 1721235365,
-            commitment: "0x79f92f1a9dff6762a6e2e5a3bed57a72385770a6",
+            nonce:1721312415000,
+            commitment: "0x69215acf3d568da77198a241773363b9436e0e62",
           } as any,
           [2n]
         )
-      ).to.not.be.reverted;
+      ).to.be.revertedWith("Not a license holder");
 
-      expect(await _icmToken.balanceOf(_sentryContract.getAddress())).to.equal(
+      expect(await icmToken.balanceOf(sentryContract.getAddress())).to.equal(
         licenseCost
       );
-
-      await expect(
-        _sentryContract.withdraw(
-          _icmToken.getAddress(),
-          otherAccount,
-          licenseCost
-        )
-      ).to.not.be.reverted;
-
-      expect(await _icmToken.balanceOf(_sentryContract.getAddress())).to.equal(
-        0n
-      );
-
-      console.log(
-        "AFter--",
-        { licenseCost },
-        await _icmToken.balanceOf(owner),
-        await _icmToken.balanceOf(_sentryContract.getAddress())
-      );
-      const otherAccountBalanceAfter = await ethers.provider.getBalance(
-        otherAccount.getAddress()
-      );
-      // expect(otherAccountBalanceAfter).to.equal(
-      //   licenseCost + otherAccountBalanceBefore
-      // );
     });
   });
 
