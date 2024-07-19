@@ -184,24 +184,27 @@ contract SentryContract is OwnableUpgradeable {
         operatorLicenseCount[regData.publicKey] += licenses.length;
     }
 
-    function deRegisterNodeOperator(bytes memory publicKey, uint[] memory licences) public noReentrancy {
-        // require(
-        //     msg.sender != nodeAddress,
-        //     "Node address can not be equal to stake address"
-        // );
-        // require(
-        //     stakeAddresses[nodeAddress] == msg.sender,
-        //     "Not Authorized"
-        // );
-        // uint i = nodeAllocationIndexes[nodeAddress];
-        // nodeAllocation[msg.sender][i].count += 1;
-        // // nodeAddresses[msg.sender] = address(0);
-        // stakeAddresses[nodeAddress] = address(0);
-        // for (uint j = 0; j < stakerNodeAddresses[msg.sender].length; j++) {
-        //     if(stakerNodeAddresses[msg.sender][j] == nodeAddress){
-        //         stakerNodeAddresses[msg.sender][j] = address(0);
-        //     }
-        // }
+    function deRegisterNodeOperator(bytes memory publicKey, uint[] memory licenses) public noReentrancy {
+       for (uint i; i < licenses.length; i++ ) {
+            require(licenseOwner[licenses[i]]  == msg.sender, "Sentry/registerNodeAccount: not license owner");
+            require(licenseOperator[licenses[i]].length == 0, "Sentry/registerNodeAccount: license already registered");
+            
+            delete licenseOperator[licenses[i]];
+                
+            
+
+            for (uint j = 0; j < operatorLicenses[publicKey].length; j++) {
+                if(operatorLicenses[publicKey][j] == licenses[i]){
+                    operatorLicenses[publicKey][j] = operatorLicenses[publicKey][operatorLicenses[publicKey].length-1];
+                    operatorLicenses[publicKey].pop();
+                    break;
+                } 
+                
+            }
+
+            operatorLicenses[publicKey].push(licenses[i]);
+        }
+        operatorLicenseCount[publicKey] -= licenses.length;
     }
 
   
