@@ -20,9 +20,11 @@ contract Subnet is OwnableUpgradeable {
     bool public withdrawalEnabled;
     bool public locked;
     IERC20 tokenContract;
+    IERC20 xTokenContract;
     uint256 public minStakable;
     uint256 public waitDuration;
     ISentryContract public sentryContract;
+    ISentryContract public superNodeContract;
    
     
 
@@ -70,11 +72,13 @@ contract Subnet is OwnableUpgradeable {
     }
 
     
-    function initialize(address tokenAddress, address _sentryContract) public initializer {
+    function initialize(address tokenAddress, address xTokenAddress, address _sentryContract, address _superNode) public initializer {
         tokenContract = IERC20(tokenAddress);
+        xTokenContract = IERC20(xTokenAddress);
         minStakable = 5000 * 10**18;
         __Ownable_init(msg.sender);
         sentryContract = ISentryContract(_sentryContract);
+        superNodeContract = ISentryContract(_superNode);
     }
 
     function stake( bytes16 subnetId, uint256 amount) public {
@@ -185,5 +189,34 @@ contract Subnet is OwnableUpgradeable {
         // tokenContract.transfer(msg.sender, amount);
 
         
-    }    
+    } 
+
+    /** time based swap. Penalize for early swap.
+     * @dev 
+     * @param amount {uint} the amount of token to be swapped in wei
+     * @param durationDays {uint} the number of days the request will mature
+     */ 
+    function swapXForTokens(uint amount, uint durationDays ) public {
+
+        
+    }  
+
+    /**
+     * claim previously initiated swap. Only possible after selected duration.
+     * @param swapID {uint} the index of the swap
+     */
+    function claimToken(uint swapID) public {
+
+        
+    }   
+
+    
+    /**
+     * cstraighforward swap, just transfer then one-one
+     * @param amount {uint} the amount of token to be swapped for X
+     */
+     function swapTokensForX(uint amount ) public {
+        
+        
+    }   
 }
