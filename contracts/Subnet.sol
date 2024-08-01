@@ -5,33 +5,35 @@ pragma solidity >=0.7.0 <0.9.0;
 import "./common/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
+import {LibSchnorr} from "./libs/schnorr/LibSchnorr.sol";
+import {LibSecp256k1} from "./libs/schnorr/LibSecp256k1.sol";
+
+import {LibSchnorrExtended} from "./libs/schnorr/LibSchnorrExtended.sol";
+import {LibSecp256k1Extended} from "./libs/schnorr/LibSecp256k1Extended.sol";
+import {ISentryContract} from "./interfaces/ISentryNode.sol";
+
 contract Subnet is OwnableUpgradeable {
     
     mapping(address => address) public stakeAddresses;
+   
 
     bool public withdrawalEnabled;
     bool public locked;
     IERC20 tokenContract;
-
-    
-    
-
     uint256 public minStakable;
     uint256 public waitDuration;
+    ISentryContract public sentryContract;
+   
     
-
-
-    
-    
-
 
 
     // Starts
-    mapping(bytes => mapping(address => StakeStruct[])) public subnetBalances;
-    mapping(bytes => mapping(address => uint256)) public subnetStakerBalances;
-    mapping(bytes => uint256) public subnetBalance;
+    mapping(bytes16 => mapping(address => StakeStruct[])) public subnetBalances;
+    mapping(bytes16 => mapping(address => uint256)) public subnetStakerBalances;
+    mapping(bytes16 => uint256) public subnetBalance;
 
     mapping(address => mapping(bytes => int32)) public unstakeOrders;
+    mapping(address => uint) public proofProviderRewards;
 
 
     struct StakeStruct{
@@ -44,7 +46,10 @@ contract Subnet is OwnableUpgradeable {
         uint256 timestamp;
     }
 
-
+    struct RewardClaimData{
+        bytes subnetId;
+        uint256 count;
+    }
 
     event StakeEvent(
         address indexed account,
@@ -57,12 +62,6 @@ contract Subnet is OwnableUpgradeable {
     );
     
     // Ends
-
-    
-
-
-   
-
     modifier noReentrancy() {
         require(!locked, "Contract Locked");
         locked = true;
@@ -71,55 +70,42 @@ contract Subnet is OwnableUpgradeable {
     }
 
     
-    function initialize(address _address) public initializer {
-        tokenContract = IERC20(_address);
+    function initialize(address tokenAddress, address _sentryContract) public initializer {
+        tokenContract = IERC20(tokenAddress);
         minStakable = 5000 * 10**18;
         __Ownable_init(msg.sender);
-
-        
+        sentryContract = ISentryContract(_sentryContract);
     }
 
-    function stake( string memory subnetId, uint256 amount) public {
-        require(amount > 0, "You need to Stake at least some tokens");
+    function stake( bytes16 subnetId, uint256 amount) public {
+        require(amount > 0, "You need to stake the minimum amount of tokens");
         require(amount >= minStakable, "You need to stake more than the minimum stake");
-        bytes memory bytesVal = abi.encodePacked(subnetId);
         StakeStruct memory stakeVal = StakeStruct(amount, block.timestamp);
         // uint256 length  = subnetBalances[bytesVal][msg.sender].length;
-
-
-        subnetBalances[bytesVal][msg.sender].push(stakeVal);
-        
-
-        
-        
-        tokenContract.transferFrom(msg.sender, address(this), amount);
-        subnetStakerBalances[bytesVal][msg.sender] += amount;
-        subnetBalance[bytesVal] += amount;
-
-
-        
+        subnetBalances[subnetId][msg.sender].push(stakeVal);
+        // tokenContract.transferFrom(msg.sender, address(this), amount);
+        subnetStakerBalances[subnetId][msg.sender] += amount;
+        subnetBalance[subnetId] += amount;
         emit StakeEvent(msg.sender, stakeVal);
     }
 
 
-    function getSubnetBalance(string memory subnetId)
+    function getSubnetBalance(bytes16 subnetId)
         public
         view
         returns (uint256)
     {
-        bytes memory bytesVal = abi.encodePacked(subnetId);
+       //  bytes memory bytesVal = abi.encodePacked(subnetId);
         // return minConst * (1 + (stakerCount/100)**2);   
-        return subnetBalance[bytesVal];   
+        return subnetBalance[subnetId];   
     }
     
-    function getSubnetAccountBalance(string memory subnetId, address addr)
+    function getSubnetAccountBalance(bytes16 subnetId, address addr)
         public
         view
         returns (uint256)
     {
-        bytes memory bytesVal = abi.encodePacked(subnetId);
-        // return minConst * (1 + (stakerCount/100)**2);   
-        return subnetStakerBalances[bytesVal][addr];   
+        return subnetStakerBalances[subnetId][addr];   
     }
     
     
@@ -128,13 +114,9 @@ contract Subnet is OwnableUpgradeable {
         withdrawalEnabled = _enabled;
     }
 
-    function unStake(string memory subnetId) public noReentrancy {
+    function unStake(bytes16 subnetId) public noReentrancy {
         require(withdrawalEnabled, "Withdrawal is not enabled");
-        
-
-       
         require(getSubnetAccountBalance(subnetId, msg.sender) > 0, "Inadequate Withdrawal Balance");
-
         // bytes memory bytesVal = abi.encodePacked(subnetId);
         // tokenContract.transfer(msg.sender, stakeBalance[msg.sender]);
         // emit UnStakeEvent(
@@ -143,51 +125,65 @@ contract Subnet is OwnableUpgradeable {
         //     block.timestamp
         // );
         // stakeBalance[msg.sender] = 0;
-        
     }
 
     function withdrawableAmount() public pure returns (uint) {
-
         uint total;
-        
         return total;
-        
-    }
-
-    
-
-
-   
-
-
-    
-    
-
-
-    
+    }    
 
     function setMinStakable(uint256 _minStakable) public onlyOwner {
         minStakable = _minStakable;
     }
 
-    
-
     function setWaitDuration(uint256 _waitDuration) public onlyOwner {
         waitDuration = _waitDuration;
     }
 
-    function rewardValidator(
-        // string memory validator,
-         string memory subnetId, uint256 amount) public {
-        
-        bytes memory bytesVal = abi.encodePacked(subnetId);
-        require(getSubnetBalance(subnetId) >= amount, "Amount should not be greater than subnet balance");
-        subnetBalance[bytesVal] -= amount;
-        // subnetStakerBalances[bytesVal][msg.sender] -= amount;
-        tokenContract.transfer(msg.sender, amount);
-
-        
+    function hashRewardData(RewardClaimData[] calldata claimData) pure internal returns(bytes32 hash) {
+        uint len = claimData[0].subnetId.length;
+        for (uint i; i < claimData.length; i++) {
+            hash = keccak256(abi.encodePacked(hash, claimData[i].subnetId[len-6:], uint64(claimData[i].count)));
+        }
     }
 
-    
+    function rewardValidator(
+        bytes memory validatorPublicKey,
+        RewardClaimData[] calldata claimData,
+        uint cycle,
+        bytes[] calldata signers,
+        bytes memory message, 
+        address committment, 
+        uint256 signature,
+        bytes16 messageHash
+        ) public {
+            //1. loop through validators and hash the last 6 bytes of the subnetId and the amount with the previous hash
+            bytes32 dataHash = hashRewardData(claimData);
+
+            //2. loop through signers starting from the last
+                // a. check if signer is present in list of valid signers for batch
+                // b. get the license count from the ISentry contract, if count is 0, throw error (//TODO check if operator was recently updated if yes, then its likely valid  )
+                // c. if all valid are valid operators, generate the aggregate public key
+            //3. keccak256 hash the concatenation of the dataHash, the cycle and the validators public key
+            //4. Verify the signature using the new hash as the message
+            //5. If its valid, deduct all amount from the subnate stake and credit the account associated with the validator
+            //6. Reward the operators that provided the proof
+
+            // bool ok = LibSchnorr.verifySignature(
+            //     pubKeys.aggregatePublicKeys(),
+            //     message,
+            //     bytes16(signature),
+            //     commitment
+            // );
+
+
+
+        // bytes memory bytesVal = abi.encodePacked(subnetId);
+        // require(getSubnetBalance(subnetId) >= amount, "Amount should not be greater than subnet balance");
+        // subnetBalance[bytesVal] -= amount;
+        // subnetStakerBalances[bytesVal][msg.sender] -= amount;
+        // tokenContract.transfer(msg.sender, amount);
+
+        
+    }    
 }
