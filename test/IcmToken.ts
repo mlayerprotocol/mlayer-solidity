@@ -16,23 +16,27 @@ describe("IcmToken", function () {
     // Contracts are deployed using the first signer/account by default
     const [owner, otherAccount] = await ethers.getSigners();
 
-    const IcmToken = await ethers.getContractFactory("ERC20");
+    const IcmToken = await ethers.getContractFactory("IcmToken");
     const _icmToken = await IcmToken.deploy();
 
     return { _icmToken, lockedAmount, owner, otherAccount };
   }
 
   describe("Deployment", function () {
-    it("Should have total Supply of 1000000000", async function () {
+    it("Should have total Supply of 1000000000000000", async function () {
       const { _icmToken } = await loadFixture(deployOneYearLockFixture);
 
-      expect(await _icmToken.totalSupply()).to.equal(1000000000);
+      expect((await _icmToken.totalSupply()).toString()).to.equal(
+        ethers.parseEther("1000000000000000").toString()
+      );
     });
 
     it("Should give all token to the right owner", async function () {
       const { _icmToken, owner } = await loadFixture(deployOneYearLockFixture);
 
-      expect(await _icmToken.balanceOf(owner.address)).to.equal(1000000000);
+      expect((await _icmToken.balanceOf(owner.address)).toString()).to.equal(
+        ethers.parseEther("1000000000000000").toString()
+      );
     });
   });
 });
