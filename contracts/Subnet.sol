@@ -38,6 +38,10 @@ contract Subnet is OwnableUpgradeable {
     mapping(address => uint) public proofProviderRewards;
 
 
+    mapping(address => SwapStruct[]) public userSwaps;
+    mapping(address => uint256) public userSwapsBalances;
+
+
     struct StakeStruct{
         uint256 amount;
         uint256 timestamp;
@@ -62,6 +66,14 @@ contract Subnet is OwnableUpgradeable {
         address indexed account,
         StakeStruct stake
     );
+
+
+    struct SwapStruct{
+        uint id;
+        uint amount;
+        uint durationDays;
+        uint256 timestamp;
+    }
     
     // Ends
     modifier noReentrancy() {
@@ -198,7 +210,11 @@ contract Subnet is OwnableUpgradeable {
      */ 
     function swapXForTokens(uint amount, uint durationDays ) public {
 
-        
+        SwapStruct memory swapStruct = SwapStruct(userSwaps[msg.sender].length+1, amount,durationDays, block.timestamp);
+        userSwaps[msg.sender].push(swapStruct);
+        userSwapsBalances[msg.sender] += amount;
+        tokenContract.transferFrom(msg.sender, address(this), amount);
+        xTokenContract.transfer(msg.sender,  amount);
     }  
 
     /**
@@ -206,7 +222,16 @@ contract Subnet is OwnableUpgradeable {
      * @param swapID {uint} the index of the swap
      */
     function claimToken(uint swapID) public {
-
+        SwapStruct[] memory userSwapStructs =  userSwaps[msg.sender];
+        for (uint i = 0; i < userSwapStructs.length; i++) {
+            if(userSwapStructs[i].id== swapID){
+                SwapStruct memory userSwap = userSwapStructs[i];
+                // Compute Deductoion
+                xTokenContract.transfer(msg.sender,  userSwap.amount);
+                break;
+            }
+        }
+        
         
     }   
 
@@ -217,6 +242,7 @@ contract Subnet is OwnableUpgradeable {
      */
      function swapTokensForX(uint amount ) public {
         
-        
+        tokenContract.transferFrom(msg.sender, address(this), amount);
+        xTokenContract.transfer(msg.sender,  amount);
     }   
 }
