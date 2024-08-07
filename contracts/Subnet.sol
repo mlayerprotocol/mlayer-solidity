@@ -228,9 +228,12 @@ contract Subnet is OwnableUpgradeable {
                 // Compute Deductoion
                 uint256 startTime = userSwap.timestamp;
                 uint256 endTime = block.timestamp;
+                
                 require(endTime > startTime, "End time must be greater than start time");
                 require(endTime >= startTime, "End time must be greater than or equal to start time");
                 uint256 differenceInDays = (endTime - startTime) / 86400; // 86400 seconds in a day
+
+                require(differenceInDays < userSwap.durationDays, "Duration has not been reached");
 
                 uint amount = userSwap.amount;
                 //  0, 30, 90 or 180 
