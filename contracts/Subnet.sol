@@ -208,12 +208,11 @@ contract Subnet is OwnableUpgradeable {
      * @param amount {uint} the amount of token to be swapped in wei
      * @param durationDays {uint} the number of days the request will mature
      */ 
-    function swapXForTokens(uint amount, uint durationDays ) public {
+    function swapXForTokens(uint amount, uint durationDays ) public noReentrancy {
 
         SwapStruct memory swapStruct = SwapStruct(userSwaps[msg.sender].length+1, amount,durationDays, block.timestamp);
         userSwaps[msg.sender].push(swapStruct);
         userSwapsBalances[msg.sender] += amount;
-        tokenContract.transferFrom(msg.sender, address(this), amount);
         xTokenContract.transfer(msg.sender,  amount);
     }  
 
@@ -221,13 +220,30 @@ contract Subnet is OwnableUpgradeable {
      * claim previously initiated swap. Only possible after selected duration.
      * @param swapID {uint} the index of the swap
      */
-    function claimToken(uint swapID) public {
+    function claimToken(uint swapID) public  noReentrancy {
         SwapStruct[] memory userSwapStructs =  userSwaps[msg.sender];
         for (uint i = 0; i < userSwapStructs.length; i++) {
             if(userSwapStructs[i].id== swapID){
                 SwapStruct memory userSwap = userSwapStructs[i];
                 // Compute Deductoion
-                xTokenContract.transfer(msg.sender,  userSwap.amount);
+                uint256 startTime = userSwap.timestamp;
+                uint256 endTime = block.timestamp;
+                require(endTime > startTime, "End time must be greater than start time");
+                require(endTime >= startTime, "End time must be greater than or equal to start time");
+                uint256 differenceInDays = (endTime - startTime) / 86400; // 86400 seconds in a day
+
+                uint amount = userSwap.amount;
+                //  0, 30, 90 or 180 
+                // 5%, 20%, 70 and 100% 
+                if(differenceInDays < 30){
+                    amount = amount / 20;
+                }else if(differenceInDays < 90){
+                    amount = amount / 5;
+                }else if(differenceInDays < 180){
+                    amount = (amount * 7) / 10;
+                }
+                xTokenContract.transferFrom(msg.sender, address(this), amount);
+                // xTokenContract.transfer(msg.sender,  userSwap.amount);
                 break;
             }
         }
@@ -240,7 +256,7 @@ contract Subnet is OwnableUpgradeable {
      * cstraighforward swap, just transfer then one-one
      * @param amount {uint} the amount of token to be swapped for X
      */
-     function swapTokensForX(uint amount ) public {
+     function swapTokensForX(uint amount ) public noReentrancy {
         
         tokenContract.transferFrom(msg.sender, address(this), amount);
         xTokenContract.transfer(msg.sender,  amount);
