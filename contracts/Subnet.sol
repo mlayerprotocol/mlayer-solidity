@@ -42,6 +42,10 @@ contract Subnet is OwnableUpgradeable {
     mapping(address => uint256) public userSwapsBalances;
 
 
+    
+    PenaltyStruct[] public penalties;
+
+
     struct StakeStruct{
         uint256 amount;
         uint256 timestamp;
@@ -74,6 +78,14 @@ contract Subnet is OwnableUpgradeable {
         uint durationDays;
         uint256 timestamp;
     }
+
+
+    struct PenaltyStruct{
+        
+        uint percentage;
+        uint durationDays;
+    }
+    
     
     // Ends
     modifier noReentrancy() {
@@ -91,6 +103,14 @@ contract Subnet is OwnableUpgradeable {
         __Ownable_init(msg.sender);
         sentryContract = ISentryContract(_sentryContract);
         superNodeContract = ISentryContract(_superNode);
+
+        //  0, 30, 90 or 180 
+        // 5%, 20%, 70 and 100% 
+        penalties = [
+            PenaltyStruct(5, 30),
+            PenaltyStruct(20, 90),
+            PenaltyStruct(70, 180)
+        ];
     }
 
     function stake( bytes16 subnetId, uint256 amount) public {
@@ -210,10 +230,15 @@ contract Subnet is OwnableUpgradeable {
      */ 
     function swapXForTokens(uint amount, uint durationDays ) public noReentrancy {
 
+        
         SwapStruct memory swapStruct = SwapStruct(userSwaps[msg.sender].length+1, amount,durationDays, block.timestamp);
         userSwaps[msg.sender].push(swapStruct);
         userSwapsBalances[msg.sender] += amount;
-        xTokenContract.transfer(msg.sender,  amount);
+        xTokenContract.transferFrom(msg.sender, address(this), amount);
+        if(durationDays == 0){
+            claimToken(swapStruct.id);
+            return;
+        }
     }  
 
     /**
@@ -238,14 +263,18 @@ contract Subnet is OwnableUpgradeable {
                 uint amount = userSwap.amount;
                 //  0, 30, 90 or 180 
                 // 5%, 20%, 70 and 100% 
-                if(differenceInDays < 30){
-                    amount = amount / 20;
-                }else if(differenceInDays < 90){
-                    amount = amount / 5;
-                }else if(differenceInDays < 180){
-                    amount = (amount * 7) / 10;
+                
+                for (uint256 index = 0; index < penalties.length; index++) {
+                    PenaltyStruct memory penalty = penalties[index];
+
+                    if(differenceInDays < penalty.durationDays){
+                        amount = (amount * penalty.percentage) / 100;
+                        break;
+                    }
+                    
                 }
-                xTokenContract.transferFrom(msg.sender, address(this), amount);
+                
+                tokenContract.transferFrom(msg.sender, address(this), amount);
                 // xTokenContract.transfer(msg.sender,  userSwap.amount);
                 break;
             }
@@ -264,4 +293,9 @@ contract Subnet is OwnableUpgradeable {
         tokenContract.transferFrom(msg.sender, address(this), amount);
         xTokenContract.transfer(msg.sender,  amount);
     }   
+
+
+    function updatePenalties(PenaltyStruct[] memory _penalties) public onlyOwner {
+        penalties = _penalties;
+    }
 }
