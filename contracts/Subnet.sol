@@ -75,8 +75,10 @@ contract Subnet is OwnableUpgradeable {
     struct SwapStruct{
         uint id;
         uint amount;
+        
         uint durationDays;
         uint256 timestamp;
+        uint claimAmount;
     }
 
 
@@ -230,8 +232,9 @@ contract Subnet is OwnableUpgradeable {
      */ 
     function swapXForTokens(uint amount, uint durationDays ) public noReentrancy {
 
+        uint claimedAmount = getRedemptionAmount(amount, durationDays );
         
-        SwapStruct memory swapStruct = SwapStruct(userSwaps[msg.sender].length+1, amount,durationDays, block.timestamp);
+        SwapStruct memory swapStruct = SwapStruct(userSwaps[msg.sender].length+1, amount,durationDays, block.timestamp, claimedAmount);
         userSwaps[msg.sender].push(swapStruct);
         userSwapsBalances[msg.sender] += amount;
         xTokenContract.transferFrom(msg.sender, address(this), amount);
@@ -253,32 +256,52 @@ contract Subnet is OwnableUpgradeable {
         uint256 startTime = userSwap.timestamp;
         uint256 endTime = block.timestamp;
         
-        require(endTime > startTime, "End time must be greater than start time");
-        require(endTime >= startTime, "End time must be greater than or equal to start time");
+        // require(endTime > startTime, "End time must be greater than start time");
+        // require(endTime >= startTime, "End time must be greater than or equal to start time");
         uint256 differenceInDays = (endTime - startTime) / 86400; // 86400 seconds in a day
 
-        require(differenceInDays < userSwap.durationDays, "Duration has not been reached");
+        require(differenceInDays >= userSwap.durationDays, "Duration has not been reached");
 
-        uint amount = userSwap.amount;
+        // uint claimedAmount = getRedemptionAmount(userSwap.amount, differenceInDays );
+//         uint amount = userSwap.amount;
+//         //  0, 30, 90 or 180 
+//         // 5%, 20%, 70 and 100% 
+        
+//         for (uint256 index = 0; index < penalties.length; index++) {
+//             PenaltyStruct memory penalty = penalties[index];
+// // 
+//             if(differenceInDays < penalty.durationDays){
+//             // if(userSwap.durationDays == penalty.durationDays){
+//                 amount = (amount * penalty.percentage) / 100;
+//                 break;
+//             }
+            
+//         }
+        
+        tokenContract.transferFrom(msg.sender, address(this), userSwap.claimAmount);
+        // xTokenContract.transfer(msg.sender,  userSwap.amount);
+        
+        
+    }
+
+    function getRedemptionAmount(uint _amount, uint durationDays) public view returns (uint) {
+        uint amount = _amount;
         //  0, 30, 90 or 180 
         // 5%, 20%, 70 and 100% 
         
         for (uint256 index = 0; index < penalties.length; index++) {
             PenaltyStruct memory penalty = penalties[index];
-
-            // if(differenceInDays < penalty.durationDays){
-            if(userSwap.durationDays == penalty.durationDays){
+// 
+            if(durationDays < penalty.durationDays){
+            // if(userSwap.durationDays == penalty.durationDays){
                 amount = (amount * penalty.percentage) / 100;
                 break;
             }
             
         }
-        
-        tokenContract.transferFrom(msg.sender, address(this), amount);
-        // xTokenContract.transfer(msg.sender,  userSwap.amount);
-        
-        
-    }   
+
+        return amount;
+    }
 
     
     /**
