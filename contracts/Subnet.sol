@@ -247,38 +247,35 @@ contract Subnet is OwnableUpgradeable {
      */
     function claimToken(uint swapID) public  noReentrancy {
         SwapStruct[] memory userSwapStructs =  userSwaps[msg.sender];
-        for (uint i = 0; i < userSwapStructs.length; i++) {
-            if(userSwapStructs[i].id== swapID){
-                SwapStruct memory userSwap = userSwapStructs[i];
-                // Compute Deductoion
-                uint256 startTime = userSwap.timestamp;
-                uint256 endTime = block.timestamp;
-                
-                require(endTime > startTime, "End time must be greater than start time");
-                require(endTime >= startTime, "End time must be greater than or equal to start time");
-                uint256 differenceInDays = (endTime - startTime) / 86400; // 86400 seconds in a day
+        
+        SwapStruct memory userSwap = userSwapStructs[swapID];
+        // Compute Deductoion
+        uint256 startTime = userSwap.timestamp;
+        uint256 endTime = block.timestamp;
+        
+        require(endTime > startTime, "End time must be greater than start time");
+        require(endTime >= startTime, "End time must be greater than or equal to start time");
+        uint256 differenceInDays = (endTime - startTime) / 86400; // 86400 seconds in a day
 
-                require(differenceInDays < userSwap.durationDays, "Duration has not been reached");
+        require(differenceInDays < userSwap.durationDays, "Duration has not been reached");
 
-                uint amount = userSwap.amount;
-                //  0, 30, 90 or 180 
-                // 5%, 20%, 70 and 100% 
-                
-                for (uint256 index = 0; index < penalties.length; index++) {
-                    PenaltyStruct memory penalty = penalties[index];
+        uint amount = userSwap.amount;
+        //  0, 30, 90 or 180 
+        // 5%, 20%, 70 and 100% 
+        
+        for (uint256 index = 0; index < penalties.length; index++) {
+            PenaltyStruct memory penalty = penalties[index];
 
-                    if(differenceInDays < penalty.durationDays){
-                        amount = (amount * penalty.percentage) / 100;
-                        break;
-                    }
-                    
-                }
-                
-                tokenContract.transferFrom(msg.sender, address(this), amount);
-                // xTokenContract.transfer(msg.sender,  userSwap.amount);
+            // if(differenceInDays < penalty.durationDays){
+            if(userSwap.durationDays == penalty.durationDays){
+                amount = (amount * penalty.percentage) / 100;
                 break;
             }
+            
         }
+        
+        tokenContract.transferFrom(msg.sender, address(this), amount);
+        // xTokenContract.transfer(msg.sender,  userSwap.amount);
         
         
     }   
