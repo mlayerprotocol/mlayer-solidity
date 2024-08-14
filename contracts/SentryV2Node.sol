@@ -98,6 +98,14 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
         bytes commitment;
     }
 
+    struct CycleGapData {
+        uint start;
+        uint end;
+        uint256 licenseCount;    
+    }
+
+    CycleGapData[] cycleGapData;
+
     mapping(address => bytes[]) public nodesOwned;
     mapping(bytes => address) public operatorsOwner;
 
@@ -135,10 +143,25 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
             license++;
         }
         addressLicenseCount[msg.sender] += quantity;
-        // 
+
+
+
+        //  option 1
         for (uint i = lastCycleLicensePurchase; i <= getCurrentCycle(); i++) {
             cycleLicenseCount[i] = licenseCount;
         }
+        //  option 1
+
+
+
+
+        //  option 2
+        cycleGapData.push(CycleGapData(lastCycleLicensePurchase, getCurrentCycle(), licenseCount));
+        //  option 2
+
+
+
+
         lastCycleLicensePurchase = getCurrentCycle();
         licenseCount += quantity;
         cycleLicenseCount[lastCycleLicensePurchase+1] = licenseCount;
@@ -357,7 +380,25 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
 
     function getTotalSentryLicenseCount(
         uint256 cycle
-    ) public view virtual override returns (uint256) {}
+    ) public view virtual override returns (uint256) {
+        uint256 _licenseCount;
+
+        if(cycleLicenseCount[cycle]!=0){
+            _licenseCount = cycleLicenseCount[cycle];
+        }else{
+            for (uint i = 0; i < cycleGapData.length; i++) {
+                CycleGapData memory _cycleGapData = cycleGapData[i];
+
+                if(_cycleGapData.start <= cycle && _cycleGapData.end >= cycle){
+                    _licenseCount = _cycleGapData.licenseCount;
+                    break;
+                }
+            }
+        }
+
+
+        return _licenseCount;
+    }
 
     function getTotalValidatorLicenceCount(
         uint256 cycle
