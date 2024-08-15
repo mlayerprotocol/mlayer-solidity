@@ -8,20 +8,21 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {LibSchnorr} from "./libs/schnorr/LibSchnorr.sol";
 import {LibSecp256k1Extended} from "./libs/schnorr/LibSecp256k1Extended.sol";
 import {MLUtils} from "./libs/mlayer/utils.sol";
-import {IChainAPI} from "./interfaces/ISentryNode.sol";
+import {INodeContract} from "./interfaces/ISentryNode.sol";
 import {ChainInfo} from "./common/ChainInfo.sol";
 
-contract SentryV2Node is OwnableUpgradeable, IChainAPI {
+contract SentryV2Node is OwnableUpgradeable {
     mapping(uint => bytes) public licenseOperator;
     mapping(uint256 => address) public licenseOwner;
     uint256 private initLicenseCount = 1000;
     uint256 private licenseCount;
     uint256 private lastCycleLicensePurchase;
     mapping(uint => uint) public cycleLicenseCount;
-    mapping(address => uint256[]) public addressLicenses;
-    mapping(address => uint) public addressLicenseCount;
+    mapping(address => uint256[]) public accountLicenses;
+    mapping(address => uint) public accountLicenseCount;
     mapping(bytes => uint[]) public operatorLicenses;
     mapping(bytes => uint) public operatorLicenseCount;
+    mapping(bytes => mapping(uint => uint)) public operatorCycleLicenseCount;
 
     // struct Order {
     //     address nodeAddress;
@@ -52,10 +53,10 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
         uint256 count;
     }
 
-    
     uint256 public startTime;
     uint256 public startBlock;
     uint256 public epochDivider;
+    uint256 public blockTime;
 
     // mapping(address => AllocationStruct[]) public nodeAllocation;
 
@@ -80,7 +81,10 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
         locked = false;
     }
 
-    function initialize(address _address, uint256  _epochDivider) public initializer {
+    function initialize(
+        address _address,
+        uint256 _blockTime
+    ) public initializer {
         __Ownable_init(msg.sender);
         tokenContract = IERC20(_address);
         startNodePrice = 1 * 10 ** 15;
@@ -88,7 +92,7 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
         licenseCount = initLicenseCount;
         startTime = block.timestamp;
         startBlock = block.number;
-        epochDivider = _epochDivider;
+        blockTime = _blockTime;
     }
 
     struct RegistrationData {
@@ -101,7 +105,7 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
     struct CycleGapData {
         uint start;
         uint end;
-        uint256 licenseCount;    
+        uint256 licenseCount;
     }
 
     CycleGapData[] cycleGapData;
@@ -138,28 +142,28 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
         for (uint i = 0; i < licenses.length; i++) {
             licenses[i] = license;
             licenseOwner[license] = msg.sender;
-            addressLicenses[msg.sender].push(license);
+            accountLicenses[msg.sender].push(license);
 
             license++;
         }
-        addressLicenseCount[msg.sender] += quantity;
+        accountLicenseCount[msg.sender] += quantity;
 
         fillLicenseCountGap();
 
         lastCycleLicensePurchase = getCurrentCycle();
         licenseCount += quantity;
-        cycleLicenseCount[lastCycleLicensePurchase+1] = licenseCount;
+        cycleLicenseCount[lastCycleLicensePurchase + 1] = licenseCount;
         emit PurchaseEvent(msg.sender, licenseCost, quantity, block.timestamp);
         return licenses;
     }
 
     function fillLicenseCountGap() public {
-        if(getCurrentCycle()-lastCycleLicensePurchase>1){
-            for (uint i = lastCycleLicensePurchase; i <= getCurrentCycle(); i++) {
+        uint curCycle = getCurrentCycle();
+        if (curCycle - lastCycleLicensePurchase > 1) {
+            for (uint i = lastCycleLicensePurchase; i <= curCycle; i++) {
                 cycleLicenseCount[i] = licenseCount;
             }
         }
-        
     }
 
     function getRegistrationData(
@@ -179,7 +183,7 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
         bytes calldata regDataBytes,
         uint[] calldata licenses
     ) public noReentrancy {
-        require(addressLicenseCount[msg.sender] > 0, "Not a license holder");
+        require(accountLicenseCount[msg.sender] > 0, "Not a license holder");
         RegistrationData memory regData = getRegistrationData(regDataBytes);
         this.registerNodeOperator(regData, licenses);
     }
@@ -188,18 +192,18 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
         RegistrationData calldata regData,
         uint[] calldata licenses
     ) public noReentrancy {
-        require(addressLicenseCount[msg.sender] > 0, "Not a license holder");
+        require(accountLicenseCount[msg.sender] > 0, "Not a license holder");
         //  bytes32 hashSign = keccak256(abi.encodePacked(regData.signature, regData.nonce));
         address owner = operatorsOwner[regData.publicKey];
         require(
             owner == address(0) || owner == msg.sender,
-            "Sentry/registerNodeAccount: Sentry node is registered to different account"
+            "registerNodeOperator: Node is registered to different account"
         );
         if (owner == address(0)) {
             require(
                 MLUtils.abs(int256(block.timestamp - (regData.nonce) / 1000)) <
                     3600,
-                "Sentry/registerNodeAccount: Nonce expired/invalid"
+                "registerNodeOperator: Nonce expired/invalid"
             );
             operatorsOwner[regData.publicKey] = msg.sender;
             nodesOwned[msg.sender].push(regData.publicKey);
@@ -216,23 +220,26 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
             MLUtils.bytesToAddress(regData.commitment)
         );
 
-        require(ok, "Sentry/registerNodeAccount: invalid node signature");
+        require(ok, "registerNodeOperator: invalid node signature");
         // assign the licences to operator
 
         // 2. check if any of the licences is already registered
         for (uint i; i < licenses.length; i++) {
             require(
                 licenseOwner[licenses[i]] == msg.sender,
-                "Sentry/registerNodeAccount: not license owner"
+                "registerNodeOperator: not license owner"
             );
             require(
                 licenseOperator[licenses[i]].length == 0,
-                "Sentry/registerNodeAccount: license already registered"
+                "registerNodeOperator: license already registered"
             );
             licenseOperator[licenses[i]] = regData.publicKey;
             operatorLicenses[regData.publicKey].push(licenses[i]);
         }
         operatorLicenseCount[regData.publicKey] += licenses.length;
+        operatorCycleLicenseCount[regData.publicKey][
+            getCurrentCycle()
+        ] += licenses.length;
     }
 
     function deRegisterNodeOperator(
@@ -242,11 +249,11 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
         for (uint i; i < licenses.length; i++) {
             require(
                 licenseOwner[licenses[i]] == msg.sender,
-                "Sentry/registerNodeAccount: not license owner"
+                "deRegisterNodeOperator: not license owner"
             );
             require(
                 licenseOperator[licenses[i]].length == 0,
-                "Sentry/registerNodeAccount: license already registered"
+                "deRegisterNodeOperator: license already registered"
             );
 
             delete licenseOperator[licenses[i]];
@@ -266,41 +273,6 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
         operatorLicenseCount[publicKey] -= licenses.length;
     }
 
-    // function getNodeLevel(address _nodeAddresses)
-    //     public
-    //     view
-    //     returns (uint256)
-    // {
-    //     address _staker = stakeAddresses[_nodeAddresses];
-    //     if (_staker == address(0) || stakeBalance[_staker] == 0) {
-    //         return 0;
-    //     }
-    //     return 1;
-    // }
-
-    // function setTokenPerMessage(uint256 rate) public {
-    //     nodeTokenPerMessage[msg.sender] = rate;
-    //     emit MessageTokenRate(msg.sender, rate);
-    // }
-
-    // function buyMessages(address _nodeAddresses, uint256 tokens, bytes32 nonce) public {
-    //     require(_nodeAddresses != address(0), "Node Address must not be an empty address");
-    //     require(tokens > 0, "You need to add at least a token");
-    //     require(orders[nonce].nodeAddress == address(0), "Order already created");
-    //     tokenContract.transferFrom(msg.sender, _nodeAddresses, tokens);
-    //     uint256 rate = nodeTokenPerMessage[_nodeAddresses];
-    //     uint256 messageCount = tokens/rate;
-    //     userMessages[msg.sender][_nodeAddresses] += messageCount;
-    //     Order memory _order = Order({
-    //         nodeAddress: _nodeAddresses,
-    //         buyer: msg.sender,
-    //         tokenAmount: tokens,
-    //         messageAmount: messageCount
-    //     });
-    //     orders[nonce] = _order;
-    //     emit MessagePurchase(_nodeAddresses, msg.sender, tokens, messageCount, nonce);
-
-    // }
     function withdrawEthers(address to) public onlyOwner {
         withdraw(address(0), to, address(this).balance);
     }
@@ -333,88 +305,74 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
     function getChainInfo()
         public
         view
-        virtual
-        override
         returns (ChainInfo memory)
     {}
 
-    function getStartTime() public view virtual override returns (uint256) {
+    function getStartTime() public view returns (uint256) {
         return startTime;
     }
 
-    function getStartBlock() public view virtual override returns (uint256) {
+    function getStartBlock() public view returns (uint256) {
         return startBlock;
     }
 
     function getEpoch(
         uint256 blockNumber
-    ) public view virtual override returns (uint256) {}
-
-    function getCycle(
-        uint256 blockNumber
-    ) public view virtual override returns (uint256) {}
-
-    function getCurrentCycle() public view virtual override returns (uint256) {
-        return getCurrentEpoch();
+    ) public view returns (uint256) {
+        return ((blockNumber - startBlock) * blockTime) / ((1 days) / 2);
     }
 
-    function getCurrentBlockNumber()
-        public
-        view
-        virtual
-        override
-        returns (uint256)
-    {}
-
-    function getCurrentEpoch() public view virtual override returns (uint256) {
-        return (block.number - startBlock)/epochDivider;
+    /**
+     * ~ 24 hours
+     */
+    function getCycle(uint256 blockNumber) public view returns (uint256) {
+        return ((blockNumber - startBlock) * blockTime) / ((1 days));
     }
 
-    function getCurrentYear() public view virtual override returns (uint256) {}
+    function getCurrentCycle() public view returns (uint256) {
+        return getCycle(block.number);
+    }
 
-    function getTotalSentryLicenseCount(
+    function getCurrentBlockNumber() public view returns (uint256) {
+        return block.number;
+    }
+
+    /**
+     * ~ 12 hour epoch
+     */
+    function getCurrentEpoch() public view returns (uint256) {
+        return getEpoch(block.number);
+    }
+
+    function getYear(uint256 _block) public view returns (uint256) {
+        return
+            ((_block - startBlock) * blockTime) / ((365 days) + ((1 days) / 4));
+    }
+
+    function getCycleLicenseCount(
         uint256 cycle
-    ) public view virtual override returns (uint256) {
-        uint256 _licenseCount;
-
-        if(cycleLicenseCount[cycle]!=0){
-            _licenseCount = cycleLicenseCount[cycle];
-        }else{
-            for (uint i = 0; i < cycleGapData.length; i++) {
-                CycleGapData memory _cycleGapData = cycleGapData[i];
-
-                if(_cycleGapData.start <= cycle && _cycleGapData.end >= cycle){
-                    _licenseCount = _cycleGapData.licenseCount;
-                    break;
-                }
-            }
+    ) public view returns (uint256) {
+        if (cycleLicenseCount[cycle] != 0) {
+            return cycleLicenseCount[cycle];
+        } else {
+            return licenseCount;
         }
-
-
-        return _licenseCount;
     }
 
     function getTotalValidatorLicenceCount(
         uint256 cycle
-    ) public view virtual override returns (uint256) {}
+    ) public view returns (uint256) {}
 
     function getSentryLicenseCount(
         uint256 cycle,
         bytes memory operator
-    ) public view virtual override returns (uint256) {}
+    ) public view returns (uint256) {
+        return operatorCycleLicenseCount[operator][cycle];
+    }
 
     function getValidatorLicenceCount(
         uint256 cycle,
         bytes memory operator
-    ) public view virtual override returns (uint256) {}
+    ) public view returns (uint256) {}
 
-    function getSentryLicenceOperator(
-        uint256 license
-    ) public view virtual override returns (bytes memory) {
-        return licenseOperator[license];
-    }
-
-    function getValidatorLicenceOperator(
-        uint256 license
-    ) public view virtual override returns (bytes memory) {}
 }

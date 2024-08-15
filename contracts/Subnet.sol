@@ -121,6 +121,7 @@ contract Subnet is OwnableUpgradeable {
         emit StakeEvent(msg.sender, stakeVal);
     }
 
+   
     // function getSubnetBalance(bytes16 subnetId)
     //     public
     //     view
@@ -258,6 +259,7 @@ contract Subnet is OwnableUpgradeable {
     }
     function rewardValidator(Claim calldata claim) public {
         {
+            require(claim.cycle < sentryContract.getCurrentCycle()-1,"Cannot claim current or future cycles");
             //1. loop through validators and hash the first 6 bytes of the subnetId and the amount with the previous hash
             // address[] memory validSigners;
             //2. keccak256 hash the concatenation of the dataHash, the cycle and the validators public key
