@@ -144,29 +144,22 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
         }
         addressLicenseCount[msg.sender] += quantity;
 
-
-
-        //  option 1
-        for (uint i = lastCycleLicensePurchase; i <= getCurrentCycle(); i++) {
-            cycleLicenseCount[i] = licenseCount;
-        }
-        //  option 1
-
-
-
-
-        //  option 2
-        cycleGapData.push(CycleGapData(lastCycleLicensePurchase, getCurrentCycle(), licenseCount));
-        //  option 2
-
-
-
+        fillLicenseCountGap();
 
         lastCycleLicensePurchase = getCurrentCycle();
         licenseCount += quantity;
         cycleLicenseCount[lastCycleLicensePurchase+1] = licenseCount;
         emit PurchaseEvent(msg.sender, licenseCost, quantity, block.timestamp);
         return licenses;
+    }
+
+    function fillLicenseCountGap() public {
+        if(getCurrentCycle()-lastCycleLicensePurchase>1){
+            for (uint i = lastCycleLicensePurchase; i <= getCurrentCycle(); i++) {
+                cycleLicenseCount[i] = licenseCount;
+            }
+        }
+        
     }
 
     function getRegistrationData(
@@ -313,6 +306,7 @@ contract SentryV2Node is OwnableUpgradeable, IChainAPI {
     }
 
     function withdraw(address token, address to, uint amount) public onlyOwner {
+        fillLicenseCountGap();
         if (token == address(0)) {
             payable(to).transfer(amount);
         } else {
