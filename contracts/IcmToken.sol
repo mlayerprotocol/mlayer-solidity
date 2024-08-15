@@ -67,4 +67,8 @@ contract IcmToken is IERC20, Ownable {
         totalSupply -= amount;
         emit Transfer(msg.sender, address(0), amount);
     }
+
+    function operatorMint(address, uint256) pure external {
+        return;
+    }
 }

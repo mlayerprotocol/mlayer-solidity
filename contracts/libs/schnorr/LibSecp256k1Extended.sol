@@ -90,6 +90,28 @@ library LibSecp256k1Extended {
         });
     }
 
+    function pubKeyFromPoints(LibSecp256k1.Point memory p) internal pure returns (bytes memory) {
+       
+        // Determine the prefix based on the parity of y
+        uint8 prefix;
+        if (p.y % 2 == 0) {
+            prefix = 0x02; // y is even
+        } else {
+            prefix = 0x03; // y is odd
+        }
+
+        // Construct the compressed public key
+        bytes memory compressedPublicKey = new bytes(33);
+        compressedPublicKey[0] = bytes1(prefix);
+        bytes memory x = abi.encodePacked(p.x);
+        for (uint256 i = 0; i < 32; i++) {
+            compressedPublicKey[i + 1] = x[i];
+        }
+
+        return compressedPublicKey;
+    
+    }
+
     function mul(LibSecp256k1.JacobianPoint memory self, uint scalar)
         internal
         pure
@@ -188,10 +210,10 @@ library LibSecp256k1Extended {
         return t;
     }
 
-    // -- Private Helpers --
+    // -- internal Helpers --
 
     function _add(uint x1, uint z1, uint x2, uint z2)
-        private
+        internal
         pure
         returns (uint, uint)
     {
@@ -202,7 +224,7 @@ library LibSecp256k1Extended {
     }
 
     function _sub(uint x1, uint z1, uint x2, uint z2)
-        private
+        internal
         pure
         returns (uint, uint)
     {
@@ -213,7 +235,7 @@ library LibSecp256k1Extended {
     }
 
     function _mul(uint x1, uint z1, uint x2, uint z2)
-        private
+        internal
         pure
         returns (uint, uint)
     {
@@ -224,7 +246,7 @@ library LibSecp256k1Extended {
     }
 
     function _div(uint x1, uint z1, uint x2, uint z2)
-        private
+        internal
         pure
         returns (uint, uint)
     {

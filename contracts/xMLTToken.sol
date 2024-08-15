@@ -7,12 +7,18 @@ import "./common/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract xMLTToken is IERC20, Ownable {
-    uint256 public totalSupply = 1000000000000000 * 10**18;
+    uint256 public totalSupply = 1000000000000000 * 10 ** 18;
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
     string public name = "xMLT Tokn";
     string public symbol = "xMLT";
     uint8 public decimals = 18;
+    mapping(address => bool) public operators;
+
+    modifier onlyOperator() {
+        require(msg.sender == owner() || operators[msg.sender], "Unauthorized");
+        _;
+    }
 
     constructor() Ownable(msg.sender) {
         uint256 _totalSup = totalSupply;
@@ -20,10 +26,10 @@ contract xMLTToken is IERC20, Ownable {
         totalSupply = _totalSup;
     }
 
-    function transfer(address recipient, uint256 amount)
-        external
-        returns (bool)
-    {
+    function transfer(
+        address recipient,
+        uint256 amount
+    ) external returns (bool) {
         balanceOf[msg.sender] -= amount;
         balanceOf[recipient] += amount;
         emit Transfer(msg.sender, recipient, amount);
@@ -34,6 +40,10 @@ contract xMLTToken is IERC20, Ownable {
         allowance[msg.sender][spender] = amount;
         emit Approval(msg.sender, spender, amount);
         return true;
+    }
+
+    function setSubnetContract(address minter) public onlyOwner {
+        operators[minter] = true;
     }
 
     function transferFrom(
@@ -58,7 +68,10 @@ contract xMLTToken is IERC20, Ownable {
         emit Transfer(address(0), _address, amount);
     }
 
-    function ownerMint(address _address, uint256 amount) public onlyOwner {
+    function operatorMint(
+        address _address,
+        uint256 amount
+    ) public onlyOperator {
         mint(_address, amount);
     }
 
@@ -67,4 +80,5 @@ contract xMLTToken is IERC20, Ownable {
         totalSupply -= amount;
         emit Transfer(msg.sender, address(0), amount);
     }
+
 }

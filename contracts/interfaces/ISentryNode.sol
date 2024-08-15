@@ -9,8 +9,12 @@ interface ISentryContract {
     function addressLicenses(address owner)  external returns (uint[] memory);
     function addressLicenseCount(address owner)  external returns (uint);
     function getEpoch(uint blockNumber) external view returns (uint);
+    function operatorsOwner(bytes memory operator) external view returns (address);
 
     function getCycle(uint blockNumber )  external view returns (uint);
+    function getCycleLicenseCount(uint cycle )  external view returns (uint);
     function getCurrentCycle()  external view returns (uint);
-     function getCurrentEpock()  external view returns (uint);
+     function getCurrentEpoch()  external view returns (uint);
+   
+
 }

@@ -109,7 +109,7 @@ library LibSchnorrExtended {
         bytes32 message,
         bytes32 signature,
         address commitment
-    ) internal view returns (bool) {
+    ) internal pure returns (bool) {
         if (commitment == address(0) || signature == 0) {
             return false;
         }
