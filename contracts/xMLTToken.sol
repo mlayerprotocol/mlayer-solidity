@@ -16,7 +16,7 @@ contract xMLTToken is IERC20, Ownable {
     mapping(address => bool) public operators;
 
     modifier onlyOperator() {
-        require(msg.sender == owner() || operators[msg.sender], "Unauthorized");
+        require(msg.sender == owner() || operators[msg.sender], "Token:Unauthorized");
         _;
     }
 

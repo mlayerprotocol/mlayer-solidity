@@ -15,7 +15,7 @@ import {MLUtils} from "./libs/mlayer/utils.sol";
 
 contract Subnet is OwnableUpgradeable {
     mapping(address => address) public stakeAddresses;
-
+    mapping(uint=>mapping(bytes=>mapping(uint=>bool))) processedClaim;
     bool public withdrawalEnabled;
     bool public locked;
     IERC20 tokenContract;
@@ -207,12 +207,10 @@ contract Subnet is OwnableUpgradeable {
     function getMinSignerCount(
         uint cycleNumLicences
     ) public pure returns (uint) {
-        if (cycleNumLicences < 5) {
-            return cycleNumLicences - 1;
-        }
-        if (cycleNumLicences < 3) {
+         if (cycleNumLicences <= 4) {
             return 1;
         }
+       
         uint min = cycleNumLicences / 3;
         if (min > 20) {
             return 20;
@@ -259,11 +257,14 @@ contract Subnet is OwnableUpgradeable {
     }
     function rewardValidator(Claim calldata claim) public {
         {
-            require(claim.cycle < sentryContract.getCurrentCycle()-1,"Cannot claim current or future cycles");
+            require(!processedClaim[claim.cycle][claim.validator][claim.index],"aready claimed");
+            processedClaim[claim.cycle][claim.validator][claim.index] = true;
+           // require(sentryContract.getCurrentCycle() - claim.cycle  > 1,"Cannot claim current or future cycles");
             //1. loop through validators and hash the first 6 bytes of the subnetId and the amount with the previous hash
             // address[] memory validSigners;
             //2. keccak256 hash the concatenation of the dataHash, the cycle and the validators public key
             //3. Verify the signature using the new hash as the message
+            
             (bool valid, bytes32 claimHash) = verifyClaim(claim);
             require(valid, "invalid signature");
             uint licenceCount = sentryContract.getCycleLicenseCount(
@@ -274,6 +275,8 @@ contract Subnet is OwnableUpgradeable {
             // uint hash = uint(claimHash);
             // uint salt = (uint(claimHash) % 1000) + 1;
             //  uint startLicence = ((hash/salt) % licenceCount) + 1000;
+
+          
             uint validCount;
             uint signerIndex = 0;
             uint minSigners = getMinSignerCount(licenceCount);
@@ -281,19 +284,22 @@ contract Subnet is OwnableUpgradeable {
                 sentryContract.operatorsOwner(claim.validator),
                 validatorBaseReward + (claim.totalCost / 2)
             );
+           
             for (uint i = 0; i < 30; i++) {
-                uint decodedLicence = MLUtils.lcg(
+                uint decodedLicence = (MLUtils.lcg(
                     ((((uint(claimHash) / ((uint(claimHash) % 1000))) %
                         licenceCount) + 1000) +
-                        (i * ((uint(claimHash) % 1000) + 1))) % licenceCount
+                        (i * ((uint(claimHash) % 1000) + 1)))) % (licenceCount)
                 ) + 1000;
+                
                 bytes memory signer = LibSecp256k1Extended.pubKeyFromPoints(
                     claim.signers[signerIndex]
                 );
                 bytes memory owner = sentryContract.licenseOperator(
                     decodedLicence
                 );
-                if (keccak256(signer) == keccak256(owner)) {
+                console.log("DecodedSigner", minSigners, licenceCount);
+                if (uint(bytes32(signer)) == uint(bytes32(owner))) {
                     validCount++;
                     signerIndex++;
                     // TODO mint/transfer xToken to the license owner

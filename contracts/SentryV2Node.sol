@@ -3,6 +3,7 @@
 pragma solidity >=0.7.0 <0.9.0;
 
 import "./common/IERC20.sol";
+import {console} from "hardhat/console.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import {LibSchnorr} from "./libs/schnorr/LibSchnorr.sol";
@@ -14,7 +15,7 @@ import {ChainInfo} from "./common/ChainInfo.sol";
 contract SentryV2Node is OwnableUpgradeable {
     mapping(uint => bytes) public licenseOperator;
     mapping(uint256 => address) public licenseOwner;
-    uint256 private initLicenseCount = 1000;
+    uint256 private licenseIdPadding = 1000;
     uint256 private licenseCount;
     uint256 private lastCycleLicensePurchase;
     mapping(uint => uint) public cycleLicenseCount;
@@ -82,24 +83,28 @@ contract SentryV2Node is OwnableUpgradeable {
     }
 
     function initialize(
-        address _address,
-        uint256 _blockTime
+        address _token,
+        uint256 _blockTime,
+        uint _startBlock
     ) public initializer {
         __Ownable_init(msg.sender);
-        tokenContract = IERC20(_address);
+        tokenContract = IERC20(_token);
         startNodePrice = 1 * 10 ** 15;
         calibrator = 10000;
-        licenseCount = initLicenseCount;
-        startTime = block.timestamp;
+        // licenseCount = initLicenseCount;
+       startTime = block.timestamp;
         startBlock = block.number;
         blockTime = _blockTime;
+        if (_startBlock > 0) {
+            startBlock = _startBlock;
+        }
     }
 
     struct RegistrationData {
         bytes publicKey;
         uint nonce;
         bytes signature;
-        bytes commitment;
+        address commitment;
     }
 
     struct CycleGapData {
@@ -138,19 +143,20 @@ contract SentryV2Node is OwnableUpgradeable {
             // refund excess
             payable(msg.sender).transfer(msg.value - licenseCost);
         }
-        uint256 license = licenseCount;
+        lastCycleLicensePurchase = getCurrentCycle();
+        uint256 licenseId = licenseCount + licenseIdPadding;
         for (uint i = 0; i < licenses.length; i++) {
-            licenses[i] = license;
-            licenseOwner[license] = msg.sender;
-            accountLicenses[msg.sender].push(license);
+            licenses[i] = licenseId;
+            licenseOwner[licenseId] = msg.sender;
+            accountLicenses[msg.sender].push(licenseId);
 
-            license++;
+            licenseId++;
         }
         accountLicenseCount[msg.sender] += quantity;
 
         fillLicenseCountGap();
 
-        lastCycleLicensePurchase = getCurrentCycle();
+       
         licenseCount += quantity;
         cycleLicenseCount[lastCycleLicensePurchase + 1] = licenseCount;
         emit PurchaseEvent(msg.sender, licenseCost, quantity, block.timestamp);
@@ -172,10 +178,12 @@ contract SentryV2Node is OwnableUpgradeable {
         bytes memory part;
         bytes memory part2;
         bytes memory nonce;
+        bytes memory commitment;
         (regData.publicKey, part) = MLUtils.split(data, 0x3A);
         (nonce, part2) = MLUtils.split(part, 0x3A);
         regData.nonce = MLUtils.bytesToUint(nonce);
-        (regData.commitment, regData.signature) = MLUtils.split(part2, 0x3A);
+        (commitment, regData.signature) = MLUtils.split(part2, 0x3A);
+        regData.commitment = MLUtils.bytesToAddress(commitment);
         return regData;
     }
 
@@ -202,7 +210,7 @@ contract SentryV2Node is OwnableUpgradeable {
         if (owner == address(0)) {
             require(
                 MLUtils.abs(int256(block.timestamp - (regData.nonce) / 1000)) <
-                    3600,
+                    36000,
                 "registerNodeOperator: Nonce expired/invalid"
             );
             operatorsOwner[regData.publicKey] = msg.sender;
@@ -212,12 +220,12 @@ contract SentryV2Node is OwnableUpgradeable {
         bytes32 dataHash = keccak256(
             abi.encodePacked(block.chainid, regData.nonce)
         );
-
+       console.log("DATATHAA", uint(dataHash), regData.nonce);
         bool ok = LibSchnorr.verifySignature(
             LibSecp256k1Extended.decompressPublicKey(regData.publicKey),
             dataHash,
             bytes32(regData.signature),
-            MLUtils.bytesToAddress(regData.commitment)
+            regData.commitment
         );
 
         require(ok, "registerNodeOperator: invalid node signature");
@@ -227,7 +235,7 @@ contract SentryV2Node is OwnableUpgradeable {
         for (uint i; i < licenses.length; i++) {
             require(
                 licenseOwner[licenses[i]] == msg.sender,
-                "registerNodeOperator: not license owner"
+                "registerNodeOperator: you must own all licenses"
             );
             require(
                 licenseOperator[licenses[i]].length == 0,
@@ -290,7 +298,7 @@ contract SentryV2Node is OwnableUpgradeable {
         // return minConst * (1 + (stakerCount/100)**2);
         return
             startNodePrice +
-            ((startNodePrice * ((licenseCount - initLicenseCount) ** 2)) /
+            ((startNodePrice * ((licenseCount) ** 2)) /
                 calibrator);
     }
 
