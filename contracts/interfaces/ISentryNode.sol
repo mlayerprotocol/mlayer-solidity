@@ -19,6 +19,8 @@ interface INodeContract {
     function accountLicenseCount(address owner)  external returns (uint);
     function fillLicenseCountGap() external;
     function operatorsOwner(bytes memory operator) external view returns (address);
+    function getOperatorLicenses(bytes memory operator) external returns (uint256[] memory);
+    function getOperators(uint page, uint perPage) external returns (bytes[] memory);
 
     // write
     function purchaseLicense(uint quantity, address token)  external;
@@ -31,6 +33,6 @@ interface INodeContract {
         uint[] memory licenses
     ) external;
     function setInitialLicencePrice(address token, uint256 _price) external;
-
+   
 
 }

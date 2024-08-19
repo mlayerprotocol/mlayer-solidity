@@ -31,6 +31,9 @@ contract SentryV2Node is OwnableUpgradeable {
     mapping(bytes => mapping(uint => uint)) public operatorCycleLicenseCount;
     INetwork public network;
     mapping(address => uint) initialLicencePrice;
+    bytes[] public operators;
+    mapping(bytes16=>uint) private operatorIndex;
+    
     
 
     // struct Order {
@@ -196,6 +199,10 @@ contract SentryV2Node is OwnableUpgradeable {
         uint[] calldata licenses
     ) public noReentrancy {
         require(accountLicenseCount[msg.sender] > 0, "Not a license holder");
+        if (operatorIndex[bytes16(regData.publicKey)] == 0) {
+            operators.push(regData.publicKey);
+            operatorIndex[bytes16(regData.publicKey)] = operators.length;
+        }
         //  bytes32 hashSign = keccak256(abi.encodePacked(regData.signature, regData.nonce));
         address owner = operatorsOwner[regData.publicKey];
         require(
@@ -203,11 +210,11 @@ contract SentryV2Node is OwnableUpgradeable {
             "registerNodeOperator: Node is registered to different account"
         );
         if (owner == address(0)) {
-            // require(
-            //     MLUtils.abs(int256(block.timestamp - (regData.nonce) / 1000)) <
-            //         36000,
-            //     "registerNodeOperator: Nonce expired/invalid"
-            // );
+            require(
+                MLUtils.abs(int256(block.timestamp - (regData.nonce) / 1000)) <
+                    3600,
+                "registerNodeOperator: Nonce expired/invalid"
+            );
             operatorsOwner[regData.publicKey] = msg.sender;
             nodesOwned[msg.sender].push(regData.publicKey);
         }
@@ -268,6 +275,7 @@ contract SentryV2Node is OwnableUpgradeable {
             );
 
             bytes memory publicKey = licenseOperator[licenses[i]];
+           
             require(
                 publicKey.length == 0,
                 "deRegisterNodeOperator: license already registered"
@@ -289,10 +297,15 @@ contract SentryV2Node is OwnableUpgradeable {
                 operatorLicenseCount[publicKey] -= 1;
             } 
             // operatorLicenses[publicKey].push(licenses[i]);
+            if (operatorLicenseCount[publicKey] == 0) {
+                operators[operatorIndex[bytes16(publicKey)]-1] = operators[operators.length-1];
+                operators.pop();
+                operatorIndex[bytes16(publicKey)] = 0;
+            }
         }
        cycleActiveLicenseCount[network.getCurrentCycle()+1] -= deregistered;
        activeLicenseCount -= deregistered;
-          
+
     }
 
     function withdrawEthers(address to) public onlyOwner {
@@ -325,7 +338,7 @@ contract SentryV2Node is OwnableUpgradeable {
     function setCalibrator(uint256 _calibrator) public onlyOwner {
         calibrator = _calibrator;
     }
-
+    
     function getCycleActiveLicenseCount(
         uint256 cycle
     ) public view returns (uint256) {
@@ -347,20 +360,29 @@ contract SentryV2Node is OwnableUpgradeable {
     }
 
 
-    function getTotalValidatorLicenceCount(
+    function getOperatorCycleLicenseCount(
+         bytes memory operator,
         uint256 cycle
-    ) public view returns (uint256) {}
-
-    function getSentryLicenseCount(
-        uint256 cycle,
-        bytes memory operator
     ) public view returns (uint256) {
         return operatorCycleLicenseCount[operator][cycle];
     }
 
-    function getValidatorLicenceCount(
-        uint256 cycle,
+    function getOperatorLicenses(
         bytes memory operator
-    ) public view returns (uint256) {}
+    ) public view returns (uint256[] memory) {
+        return operatorLicenses[operator];
+    }
+
+    function getOperators(uint page, uint perPage) public view returns (bytes[] memory opr) {
+        if (perPage == 0) {
+            perPage = 40;
+        }
+        opr = new bytes[](perPage);
+        for(uint i = 0; i<perPage; i++) {
+            opr[i] = operators[(i + (page - 1)) * perPage];
+        }
+    }
+
+  
 
 }

@@ -60,10 +60,10 @@ contract Network is OwnableUpgradeable {
     function getChainInfo()
         public
         view
-        returns (ChainInfo memory)
-    {
+        returns (ChainInfo memory) {
         return ChainInfo({
             startTime: startTime,
+            chainId: block.chainid,
             startBlock: startBlock,
             currentBlock: block.number,
             currentEpoch: getCurrentEpoch(),

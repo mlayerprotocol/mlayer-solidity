@@ -7,6 +7,7 @@ struct ChainInfo  {
     uint256 currentBlock;
     uint256 currentEpoch;
     uint256 currentCycle;
+    uint256 chainId;
 
 }
 
