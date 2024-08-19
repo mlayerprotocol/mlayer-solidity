@@ -2,7 +2,7 @@ import { ethers, upgrades } from 'hardhat';
 
 const networkContract = ''; // testnet
 const tokenContract = ''; // testnet
-const licensePrice = 100n;
+const licensePrice = 100n; // testnet
 
 async function main() {
   const [owner, otherAccount] = await ethers.getSigners();

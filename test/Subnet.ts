@@ -3,9 +3,18 @@ import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { ContractTransactionResponse } from 'ethers';
-import { IcmToken, SentryV2Node, xMLTToken, Subnet } from '../typechain-types';
+import {
+  IcmToken,
+  SentryV2Node,
+  xMLTToken,
+  Subnet,
+  Network,
+} from '../typechain-types';
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers';
 
+let networkContract: Network & {
+  deploymentTransaction(): ContractTransactionResponse;
+};
 let sentryContract: SentryV2Node & {
   deploymentTransaction(): ContractTransactionResponse;
 };
@@ -32,6 +41,11 @@ describe('Subnet', function () {
   async function deployContract() {
     // Contracts are deployed using the first signer/account by default
     const [owner, otherAccount] = await ethers.getSigners();
+
+    const Network = await ethers.getContractFactory('Network');
+    const network = await Network.deploy();
+    await network.initialize(2n, 0n);
+
     const IcmToken = await ethers.getContractFactory('IcmToken');
     const _icmToken = await IcmToken.deploy();
 
@@ -40,17 +54,22 @@ describe('Subnet', function () {
 
     const Sentry = await ethers.getContractFactory('SentryV2Node');
     const sentry = await Sentry.deploy();
-    await sentry.initialize(_icmToken.getAddress(), '2', 0n);
+    await sentry.initialize(network.getAddress(), _icmToken.getAddress(), 100n);
 
-    console.log('CURRENTBLOCK:::', await sentry.getCurrentBlockNumber());
+    console.log('CURRENTBLOCK:::', await network.getCurrentBlockNumber());
     const Validator = await ethers.getContractFactory('SentryV2Node');
     const validator = await Validator.deploy();
-    await validator.initialize(_icmToken.getAddress(), '2', 0n);
+    await validator.initialize(
+      network.getAddress(),
+      _icmToken.getAddress(),
+      10000n
+    );
 
     const Subnet = await ethers.getContractFactory('Subnet');
     const _subnet = await Subnet.deploy();
 
     await _subnet.initialize(
+      network.getAddress(),
       _icmToken.getAddress(),
       xToken.getAddress(),
       sentry.getAddress(),
@@ -199,14 +218,17 @@ describe('Subnet', function () {
     it('Should be able to make purchase', async function () {
       // const { _sentryContract, owner } = await loadFixture(deployContract);
       const quantity = 4n;
-      const licenseCost = (await sentryContract.getLicencePrice()) * quantity;
+      const licenseCost =
+        (await sentryContract.getLicencePrice(ethers.ZeroAddress)) * quantity;
 
       // await icmTokenContract.approve(
       //   ownerAccount.address,
       //   licenseCost * quantity
       // );
       await expect(
-        sentryContract.purchaseLicense(quantity, { value: licenseCost })
+        sentryContract.purchaseLicense(quantity, ethers.ZeroAddress, {
+          value: licenseCost,
+        })
       ).to.not.be.reverted;
       const contractBalance = await ethers.provider.getBalance(
         sentryContract.getAddress()

@@ -7,7 +7,7 @@ async function main() {
 
   const IcmToken = await ethers.getContractFactory("IcmToken");
   const _icmToken = await IcmToken.deploy();
-  console.log('Token Deployed to : ', _icmToken.address)
+  console.log('Token Deployed to : ', _icmToken.getAddress());
 
   return { _icmToken, owner, otherAccount };
 

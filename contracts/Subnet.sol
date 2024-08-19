@@ -12,6 +12,7 @@ import {LibSchnorrExtended} from "./libs/schnorr/LibSchnorrExtended.sol";
 import {LibSecp256k1Extended} from "./libs/schnorr/LibSecp256k1Extended.sol";
 import {INodeContract} from "./interfaces/ISentryNode.sol";
 import {MLUtils} from "./libs/mlayer/utils.sol";
+import {INetwork} from "./interfaces/INetwork.sol";
 
 contract Subnet is OwnableUpgradeable {
     mapping(address => address) public stakeAddresses;
@@ -21,11 +22,13 @@ contract Subnet is OwnableUpgradeable {
     IERC20 tokenContract;
     IERC20 xTokenContract;
     uint256 public minStakable;
-    uint256 public waitDuration;
+    // uint256 public waitDuration;
     INodeContract public sentryContract;
     INodeContract public superNodeContract;
     uint public sentryBaseReward;
     uint public validatorBaseReward;
+    INetwork public network;
+    mapping(bytes32=>bool) multilocked;
 
     // Starts
     mapping(bytes16 => mapping(address => StakeStruct[])) public subnetBalances;
@@ -36,17 +39,9 @@ contract Subnet is OwnableUpgradeable {
     mapping(address => mapping(bytes => int32)) public unstakeOrders;
     mapping(address => uint) public proofProviderRewards;
 
-    mapping(address => SwapStruct[]) public userSwaps;
-    mapping(address => uint256) public userSwapsBalances;
 
-    PenaltyStruct[] public penalties;
 
     struct StakeStruct {
-        uint256 amount;
-        uint256 timestamp;
-    }
-
-    struct OrderStruct {
         uint256 amount;
         uint256 timestamp;
     }
@@ -60,18 +55,6 @@ contract Subnet is OwnableUpgradeable {
 
     event UnStakeEvent(address indexed account, StakeStruct stake);
 
-    struct SwapStruct {
-        uint id;
-        uint amount;
-        uint durationDays;
-        uint256 timestamp;
-        uint claimAmount;
-    }
-
-    struct PenaltyStruct {
-        uint percentage;
-        uint durationDays;
-    }
 
     // Ends
     modifier noReentrancy() {
@@ -79,6 +62,14 @@ contract Subnet is OwnableUpgradeable {
         locked = true;
         _;
         locked = false;
+    }
+
+     modifier claimLock(Claim memory claim) {
+        bytes32 hash = keccak256(abi.encodePacked(claim.validator,claim.cycle, claim.index));
+        require(!multilocked[hash], "Contract Locked");
+        multilocked[hash] = true;
+        _;
+        multilocked[hash] = false;
     }
 
     function subnetBalance(bytes16 subnetId) public view returns (uint) {
@@ -90,6 +81,7 @@ contract Subnet is OwnableUpgradeable {
     }
 
     function initialize(
+         address _network,
         address tokenAddress,
         address xTokenAddress,
         address _sentryContract,
@@ -101,9 +93,7 @@ contract Subnet is OwnableUpgradeable {
         __Ownable_init(msg.sender);
         sentryContract = INodeContract(_sentryContract);
         superNodeContract = INodeContract(_superNodeContract);
-        penalties.push(PenaltyStruct(5, 30));
-        penalties.push(PenaltyStruct(20, 90));
-        penalties.push(PenaltyStruct(70, 180));
+        network = INetwork(_network);
     }
 
     function stake(bytes16 subnetId, uint256 amount) public {
@@ -167,9 +157,9 @@ contract Subnet is OwnableUpgradeable {
         minStakable = _minStakable;
     }
 
-    function setWaitDuration(uint256 _waitDuration) public onlyOwner {
-        waitDuration = _waitDuration;
-    }
+    // function setWaitDuration(uint256 _waitDuration) public onlyOwner {
+    //     waitDuration = _waitDuration;
+    // }
 
     function setSentryBaseReward(uint256 _baseReward) public onlyOwner {
         sentryBaseReward = _baseReward;
@@ -255,19 +245,25 @@ contract Subnet is OwnableUpgradeable {
             claimHash
         );
     }
-    function rewardValidator(Claim calldata claim) public {
+
+    function rewardValidator(Claim calldata claim) public claimLock(claim) {
+        uint licenceCount;
+        bytes32 claimHash;
         {
             require(!processedClaim[claim.cycle][claim.validator][claim.index],"aready claimed");
             processedClaim[claim.cycle][claim.validator][claim.index] = true;
-           // require(sentryContract.getCurrentCycle() - claim.cycle  > 1,"Cannot claim current or future cycles");
+            if (block.chainid != 31337) {
+                require(network.getCurrentCycle() - claim.cycle  > 1,"Cannot claim current or future cycles");
+            }
             //1. loop through validators and hash the first 6 bytes of the subnetId and the amount with the previous hash
             // address[] memory validSigners;
             //2. keccak256 hash the concatenation of the dataHash, the cycle and the validators public key
             //3. Verify the signature using the new hash as the message
             
-            (bool valid, bytes32 claimHash) = verifyClaim(claim);
+            (bool valid, bytes32 hash) = verifyClaim(claim);
             require(valid, "invalid signature");
-            uint licenceCount = sentryContract.getCycleLicenseCount(
+            claimHash = hash;
+            licenceCount = sentryContract.getCycleActiveLicenseCount(
                 claim.cycle
             );
 
@@ -276,7 +272,8 @@ contract Subnet is OwnableUpgradeable {
             // uint salt = (uint(claimHash) % 1000) + 1;
             //  uint startLicence = ((hash/salt) % licenceCount) + 1000;
 
-          
+        }
+        {
             uint validCount;
             uint signerIndex = 0;
             uint minSigners = getMinSignerCount(licenceCount);
@@ -332,128 +329,8 @@ contract Subnet is OwnableUpgradeable {
                 }
             }
         }
-        // distribute the reward
-        //5. If its valid, deduct all amount from the subnate stake and credit the account associated with the validator
+        sentryContract.fillLicenseCountGap();
+        superNodeContract.fillLicenseCountGap();
         //6. Reward the operators that provided the proof
-
-        // bool ok = LibSchnorr.verifySignature(
-        //     pubKeys.aggregatePublicKeys(),
-        //     message,
-        //     bytes16(signature),
-        //     commitment
-        // );
-
-        // bytes memory bytesVal = abi.encodePacked(subnetId);
-        // require(getSubnetBalance(subnetId) >= amount, "Amount should not be greater than subnet balance");
-        // subnetBalance[bytesVal] -= amount;
-        // subnetStakerBalances[bytesVal][msg.sender] -= amount;
-        // tokenContract.transfer(msg.sender, amount);
-    }
-
-    /** time based swap. Penalize for early swap.
-     * @dev
-     * @param amount {uint} the amount of token to be swapped in wei
-     * @param durationDays {uint} the number of days the request will mature
-     */
-    function swapXForTokens(
-        uint amount,
-        uint durationDays
-    ) public noReentrancy {
-        uint claimedAmount = getRedemptionAmount(amount, durationDays);
-
-        SwapStruct memory swapStruct = SwapStruct(
-            userSwaps[msg.sender].length + 1,
-            amount,
-            durationDays,
-            block.timestamp,
-            claimedAmount
-        );
-        userSwaps[msg.sender].push(swapStruct);
-        userSwapsBalances[msg.sender] += amount;
-        xTokenContract.transferFrom(msg.sender, address(this), amount);
-        if (durationDays == 0) {
-            claimToken(swapStruct.id);
-            return;
-        }
-    }
-
-    /**
-     * claim previously initiated swap. Only possible after selected duration.
-     * @param swapID {uint} the index of the swap
-     */
-    function claimToken(uint swapID) public noReentrancy {
-        SwapStruct[] memory userSwapStructs = userSwaps[msg.sender];
-
-        SwapStruct memory userSwap = userSwapStructs[swapID];
-        // Compute Deductoion
-        uint256 startTime = userSwap.timestamp;
-        uint256 endTime = block.timestamp;
-
-        // require(endTime > startTime, "End time must be greater than start time");
-        // require(endTime >= startTime, "End time must be greater than or equal to start time");
-        uint256 differenceInDays = (endTime - startTime) / 86400; // 86400 seconds in a day
-
-        require(
-            differenceInDays >= userSwap.durationDays,
-            "Duration has not been reached"
-        );
-
-        // uint claimedAmount = getRedemptionAmount(userSwap.amount, differenceInDays );
-        //         uint amount = userSwap.amount;
-        //         //  0, 30, 90 or 180
-        //         // 5%, 20%, 70 and 100%
-
-        //         for (uint256 index = 0; index < penalties.length; index++) {
-        //             PenaltyStruct memory penalty = penalties[index];
-        // //
-        //             if(differenceInDays < penalty.durationDays){
-        //             // if(userSwap.durationDays == penalty.durationDays){
-        //                 amount = (amount * penalty.percentage) / 100;
-        //                 break;
-        //             }
-
-        //         }
-
-        tokenContract.transferFrom(
-            msg.sender,
-            address(this),
-            userSwap.claimAmount
-        );
-        // xTokenContract.transfer(msg.sender,  userSwap.amount);
-    }
-
-    function getRedemptionAmount(
-        uint _amount,
-        uint durationDays
-    ) public view returns (uint) {
-        uint amount = _amount;
-        for (uint256 index = 0; index < penalties.length; index++) {
-            PenaltyStruct memory penalty = penalties[index];
-            if (durationDays < penalty.durationDays) {
-                // if(userSwap.durationDays == penalty.durationDays){
-                amount = (amount * penalty.percentage) / 100;
-                break;
-            }
-        }
-
-        return amount;
-    }
-
-    /**
-     * cstraighforward swap, just transfer then one-one
-     * @param amount {uint} the amount of token to be swapped for X
-     */
-    function swapTokensForX(uint amount) public noReentrancy {
-        tokenContract.transferFrom(msg.sender, address(this), amount);
-        xTokenContract.transfer(msg.sender, amount);
-    }
-
-    function updatePenalties(
-        PenaltyStruct[] memory _penalties
-    ) public onlyOwner {
-        delete penalties;
-        for(uint i; i<_penalties.length; i++) {
-            penalties.push(_penalties[i]);
-        }
     }
 }

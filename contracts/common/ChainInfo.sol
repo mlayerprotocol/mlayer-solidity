@@ -9,3 +9,10 @@ struct ChainInfo  {
     uint256 currentCycle;
 
 }
+
+struct RegistrationData {
+        bytes publicKey;
+        uint nonce;
+        bytes signature;
+        address commitment;
+        }
