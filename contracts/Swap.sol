@@ -35,6 +35,7 @@ contract Swap is OwnableUpgradeable {
         uint durationDays;
         uint256 timestamp;
         uint claimAmount;
+        uint256 claimedAt;
     }
 
     struct PenaltyStruct {
@@ -83,19 +84,21 @@ contract Swap is OwnableUpgradeable {
     function swapXForTokens(
         uint amount,
         uint durationDays
-    ) public noReentrancy {
+    ) public {
         uint claimedAmount = getRedemptionAmount(amount, durationDays);
 
         SwapStruct memory swapStruct = SwapStruct(
-            userSwaps[msg.sender].length + 1,
+            userSwaps[msg.sender].length,
             amount,
             durationDays,
             block.timestamp,
-            claimedAmount
+            claimedAmount,
+            0
         );
         userSwaps[msg.sender].push(swapStruct);
         userSwapsBalances[msg.sender] += amount;
         xTokenContract.transferFrom(msg.sender, address(this), amount);
+        
         if (durationDays == 0) {
             claimToken(swapStruct.id);
             return;
@@ -110,6 +113,13 @@ contract Swap is OwnableUpgradeable {
         SwapStruct[] memory userSwapStructs = userSwaps[msg.sender];
 
         SwapStruct memory userSwap = userSwapStructs[swapID];
+
+        require(
+            userSwap.claimedAt == 0,
+            "Claim has been collected"
+        );
+
+
         // Compute Deductoion
         uint256 startTime = userSwap.timestamp;
         uint256 endTime = block.timestamp;
@@ -138,12 +148,14 @@ contract Swap is OwnableUpgradeable {
         //             }
 
         //         }
-
-        tokenContract.transferFrom(
+    
+        require(tokenContract.transfer(
             msg.sender,
-            address(this),
             userSwap.claimAmount
-        );
+        ),"Transfer failed");
+
+        
+        userSwaps[msg.sender][swapID].claimedAt = block.timestamp;
         // xTokenContract.transfer(msg.sender,  userSwap.amount);
     }
 
