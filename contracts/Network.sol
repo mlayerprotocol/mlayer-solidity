@@ -4,20 +4,23 @@ pragma solidity >=0.7.0 <0.9.0;
 
 import "./common/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 import {ChainInfo} from "./common/ChainInfo.sol";
+import {console} from "hardhat/console.sol";
 
-contract Network is OwnableUpgradeable {
-    
+contract Network is OwnableUpgradeable, AccessControlUpgradeable {
     bool public locked;
-    uint256 public messagePrice;
-   
-   
-    uint256 public startTime;
+    uint256 private messagePrice;
+    uint256 private startTime;
     uint256 public startBlock;
     uint256 public blockTime;
+   
+    mapping(uint256=>uint256) public cycleMessagePrice;
+    MessagePriceUpdate[] public priceHistory;
+    bytes32 public constant MESSAGE_PRICE_MANAGER = keccak256("MESSAGE_PRICE_MANAGER");
 
-    
+
     modifier noReentrancy() {
         require(!locked, "Contract Locked");
         locked = true;
@@ -25,14 +28,31 @@ contract Network is OwnableUpgradeable {
         locked = false;
     }
 
+    modifier onlyTest() {
+        require(block.chainid == 31337,"unauthorized");
+        _;
+    }
+
+    struct MessagePriceUpdate {
+        uint price;
+        uint from;
+        uint to;
+    }
+    event PriceUpdated(uint cycle, uint price);
+
+    
+
     function initialize(
         uint256 _blockTime,
         uint _startBlock
     ) public initializer {
         __Ownable_init(msg.sender);
+         __AccessControl_init();
+         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setRoleAdmin(DEFAULT_ADMIN_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(MESSAGE_PRICE_MANAGER, DEFAULT_ADMIN_ROLE);
         messagePrice = 1 * 10 ** 15;
-       
-       startTime = block.timestamp;
+        startTime = block.timestamp;
         startBlock = block.number;
         blockTime = _blockTime;
         if (_startBlock > 0) {
@@ -40,7 +60,8 @@ contract Network is OwnableUpgradeable {
         }
     }
 
-    function withdraw(address token, address to, uint amount) public onlyOwner {
+
+    function withdraw(address token, address to, uint amount) public onlyRole(DEFAULT_ADMIN_ROLE) {
         if (token == address(0)) {
             payable(to).transfer(amount);
         } else {
@@ -48,21 +69,76 @@ contract Network is OwnableUpgradeable {
         }
     }
 
-    function getMessagePrice() public view returns (uint256) {
+    function searchPriceHistory(uint256 cycle) public view returns (uint256) {
+        uint len = priceHistory.length;
+       
+        if (len==0) {
+             
+            return messagePrice;
+        }
+        int256 low = 0;
+        int256 high = int256(len - 1);
+       
+        while (low <= high) {
+            int256 mid = low + (high - low) / 2;
+            MessagePriceUpdate memory currentRange = priceHistory[uint256(mid)];
+            if (cycle >= currentRange.from && cycle <= currentRange.to) {
+                // Target is within the range
+                return currentRange.price;
+            } else if (cycle < currentRange.from) {
+                // Search the left half
+                high = mid - 1;
+            } else {
+                // Search the right half
+                low = mid + 1;
+            }
+        }
         return messagePrice;
     }
-
-    function setMessagePrice(uint price) public onlyOwner {
-        messagePrice = price;
+    /*
+     * getMessagePrice: returns the message price
+     * @param cycle uint
+     */
+    function getMessagePrice(uint cycle) public view returns (uint256) {
+        uint256 cyclePrice = cycleMessagePrice[cycle];
+        require(cycle <= getCurrentCycle(), "invalid cycle");
+        if (cyclePrice == 0) {
+           return searchPriceHistory(cycle);
+        }
+        return cyclePrice;
     }
 
+    /*
+     * getMessagePrice: returns the message price
+     * @param cycle uint
+     */
+    function getCurrentMessagePrice() public view returns (uint256) {
+        return getMessagePrice(getCurrentCycle());
+    }
+
+    function setMessagePrice(uint price) public onlyRole(MESSAGE_PRICE_MANAGER) {
+        uint curCycle = getCurrentCycle();
+        cycleMessagePrice[curCycle] = messagePrice;
+        cycleMessagePrice[curCycle+1] = price;
+        uint from = 0;
+        if (priceHistory.length > 0) {
+                from = priceHistory[priceHistory.length-1].to + 1;
+        }
+        priceHistory.push(MessagePriceUpdate({
+                price: messagePrice,
+                from: from,
+                to: curCycle
+            }));
+        messagePrice = price;
+        emit PriceUpdated(curCycle+1, price);
+    }
 
     function getChainInfo()
         public
         view
         returns (ChainInfo memory) {
         return ChainInfo({
-            startTime: startTime,
+            startTime: startTime * 1000,
             chainId: block.chainid,
             startBlock: startBlock,
             currentBlock: block.number,
@@ -72,7 +148,11 @@ contract Network is OwnableUpgradeable {
     }
 
     function getStartTime() public view returns (uint256) {
-        return startTime;
+        return startTime * 1000;
+    }
+
+     function setStartBlock(uint256 _blockNum) public onlyOwner onlyTest {
+       startBlock = _blockNum;
     }
 
     function getStartBlock() public view returns (uint256) {

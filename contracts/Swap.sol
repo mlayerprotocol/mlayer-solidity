@@ -28,6 +28,16 @@ contract Swap is OwnableUpgradeable {
     PenaltyStruct[] public penalties;
 
 
+    event SwapXEvent (
+        uint amountIn,
+        uint amountOut,
+        uint swapId,
+        address indexed account
+    );
+    event SwapTokenEvent (
+        uint amount,
+        address indexed account
+    );
 
     struct SwapStruct {
         uint id;
@@ -96,6 +106,7 @@ contract Swap is OwnableUpgradeable {
         userSwaps[msg.sender].push(swapStruct);
         userSwapsBalances[msg.sender] += amount;
         xTokenContract.transferFrom(msg.sender, address(this), amount);
+        xTokenContract.burn(amount);
         if (durationDays == 0) {
             claimToken(swapStruct.id);
             return;
@@ -107,16 +118,15 @@ contract Swap is OwnableUpgradeable {
      * @param swapID {uint} the index of the swap
      */
     function claimToken(uint swapID) public noReentrancy {
-        SwapStruct[] memory userSwapStructs = userSwaps[msg.sender];
 
-        SwapStruct memory userSwap = userSwapStructs[swapID];
+        SwapStruct memory userSwap = userSwaps[msg.sender][swapID];
+        require(userSwap.amount > 0, "Invalid swapId");
         // Compute Deductoion
         uint256 startTime = userSwap.timestamp;
-        uint256 endTime = block.timestamp;
 
         // require(endTime > startTime, "End time must be greater than start time");
         // require(endTime >= startTime, "End time must be greater than or equal to start time");
-        uint256 differenceInDays = (endTime - startTime) / 86400; // 86400 seconds in a day
+        uint256 differenceInDays = (block.timestamp - startTime) / 86400; // 86400 seconds in a day
 
         require(
             differenceInDays >= userSwap.durationDays,
@@ -139,12 +149,9 @@ contract Swap is OwnableUpgradeable {
 
         //         }
 
-        tokenContract.transferFrom(
-            msg.sender,
-            address(this),
-            userSwap.claimAmount
-        );
+       tokenContract.operatorMint(msg.sender, userSwap.claimAmount);
         // xTokenContract.transfer(msg.sender,  userSwap.amount);
+         emit SwapXEvent(userSwap.amount, userSwap.claimAmount, swapID, msg.sender);
     }
 
     function getRedemptionAmount(
@@ -170,7 +177,10 @@ contract Swap is OwnableUpgradeable {
      */
     function swapTokensForX(uint amount) public noReentrancy {
         tokenContract.transferFrom(msg.sender, address(this), amount);
-        xTokenContract.transfer(msg.sender, amount);
+        tokenContract.burn(amount);
+        // xTokenContract.transfer(msg.sender, amount);
+        xTokenContract.operatorMint(msg.sender, amount);
+        emit SwapTokenEvent(amount, msg.sender);
     }
 
     function updatePenalties(

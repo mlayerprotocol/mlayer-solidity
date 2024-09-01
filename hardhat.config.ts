@@ -95,5 +95,13 @@ module.exports = {
       // gasPrice: 25000000000,
       timeout: 7200000,
     },
+    basetest: {
+      url: secrets.rpc.basespolia,
+      accounts: secrets.keys.dev,
+      chainId: 84532,
+      gas: 100000000,
+      // gasPrice: 25000000000,
+      timeout: 7200000,
+    },
   },
 };

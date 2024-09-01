@@ -11,19 +11,19 @@ describe("Stake", function () {
     // Contracts are deployed using the first signer/account by default
     const [owner, otherAccount] = await ethers.getSigners();
 
-    const IcmToken = await ethers.getContractFactory("IcmToken");
+    const IcmToken = await ethers.getContractFactory('IcmToken');
     const _icmToken = await IcmToken.deploy();
 
-    const Stake = await ethers.getContractFactory("Stake");
+    const Stake = await ethers.getContractFactory('Stake');
     const _stake = await Stake.deploy();
-    
-    await _stake.initialize(_icmToken.getAddress());
+
+    await _stake.initialize(_icmToken.target);
 
     return { _icmToken, _stake, owner, otherAccount };
   }
 
-  describe("Deployment", function () {
-    it("Should have withdrawalEnabled as FALSE", async function () {
+  describe('Deployment', function () {
+    it('Should have withdrawalEnabled as FALSE', async function () {
       const { _stake } = await loadFixture(deployContract);
 
       expect(await _stake.withdrawalEnabled()).to.equal(false);
@@ -31,24 +31,24 @@ describe("Stake", function () {
       //   "Withdrawal is not enabled"
       // );
     });
-    it("Should have unStake Withdrawal is not enabled", async function () {
+    it('Should have unStake Withdrawal is not enabled', async function () {
       const { _stake } = await loadFixture(deployContract);
 
       await expect(_stake.unStake()).to.be.revertedWith(
-        "Withdrawal is not enabled"
+        'Withdrawal is not enabled'
       );
     });
   });
 
-  describe("Staking...", function () {
+  describe('Staking...', function () {
     const stakeVal = 2000;
     it(`Should Stake ${stakeVal}`, async function () {
       const { _stake, _icmToken, owner } = await loadFixture(deployContract);
 
-      await _icmToken.approve(_stake.getAddress(), stakeVal);
+      await _icmToken.approve(_stake.target, stakeVal);
 
       await expect(_stake.stake(stakeVal)).to.not.be.revertedWith(
-        "Insufficient Allowance"
+        'Insufficient Allowance'
       );
 
       expect(await _stake.stakeBalance(owner.address)).to.equal(stakeVal);
@@ -61,7 +61,7 @@ describe("Stake", function () {
     it(`Level is : ${level}`, async function () {
       const { _stake, _icmToken, owner } = await loadFixture(deployContract);
 
-      await _icmToken.approve(_stake.getAddress(), stakeVal);
+      await _icmToken.approve(_stake.target, stakeVal);
 
       await expect(_stake.stake(stakeVal)).to.not.be.revertedWith(
         "Insufficient Allowance"

@@ -6,7 +6,11 @@ async function main() {
   const network = await upgrades.deployProxy(Contract, [2n, 0n], {
     initializer: 'initialize',
   });
-  console.log('Network Deployed to : ', network.address);
+  console.log(
+    'Network Deployed to : ',
+    network.target,
+    await network.getAddress()
+  );
 }
 
 // We recommend this pattern to be able to use async/await everywhere

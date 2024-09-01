@@ -13,10 +13,11 @@ import {LibSecp256k1Extended} from "./libs/schnorr/LibSecp256k1Extended.sol";
 import {INodeContract} from "./interfaces/ISentryNode.sol";
 import {MLUtils} from "./libs/mlayer/utils.sol";
 import {INetwork} from "./interfaces/INetwork.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
-contract Subnet is OwnableUpgradeable {
+contract Subnet is OwnableUpgradeable, AccessControlUpgradeable {
     mapping(address => address) public stakeAddresses;
-    mapping(uint=>mapping(bytes=>mapping(uint=>bool))) processedClaim;
+    mapping(uint=>mapping(bytes=>mapping(uint=>bool))) public processedClaim;
     bool public withdrawalEnabled;
     bool public locked;
     IERC20 tokenContract;
@@ -24,7 +25,7 @@ contract Subnet is OwnableUpgradeable {
     uint256 public minStakable;
     // uint256 public waitDuration;
     INodeContract public sentryContract;
-    INodeContract public superNodeContract;
+    INodeContract public validatorNodeContract;
     uint public sentryBaseReward;
     uint public validatorBaseReward;
     INetwork public network;
@@ -85,14 +86,18 @@ contract Subnet is OwnableUpgradeable {
         address tokenAddress,
         address xTokenAddress,
         address _sentryContract,
-        address _superNodeContract
+        address _validatorNodeContract
     ) public initializer {
         tokenContract = IERC20(tokenAddress);
         xTokenContract = IERC20(xTokenAddress);
         minStakable = 5000 * 10 ** 18;
         __Ownable_init(msg.sender);
+        __AccessControl_init();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setRoleAdmin(DEFAULT_ADMIN_ROLE, DEFAULT_ADMIN_ROLE);
         sentryContract = INodeContract(_sentryContract);
-        superNodeContract = INodeContract(_superNodeContract);
+        validatorNodeContract = INodeContract(_validatorNodeContract);
         network = INetwork(_network);
     }
 
@@ -128,7 +133,7 @@ contract Subnet is OwnableUpgradeable {
         return subnetStakerBalances[subnetId][addr];
     }
 
-    function enableWithdrawal(bool _enabled) public onlyOwner {
+    function enableWithdrawal(bool _enabled) public onlyRole(DEFAULT_ADMIN_ROLE) {
         withdrawalEnabled = _enabled;
     }
 
@@ -153,19 +158,19 @@ contract Subnet is OwnableUpgradeable {
         return total;
     }
 
-    function setMinStakable(uint256 _minStakable) public onlyOwner {
+    function setMinStakable(uint256 _minStakable) public onlyRole(DEFAULT_ADMIN_ROLE) {
         minStakable = _minStakable;
     }
 
-    // function setWaitDuration(uint256 _waitDuration) public onlyOwner {
+    // function setWaitDuration(uint256 _waitDuration) public onlyRole(DEFAULT_ADMIN_ROLE) {
     //     waitDuration = _waitDuration;
     // }
 
-    function setSentryBaseReward(uint256 _baseReward) public onlyOwner {
+    function setSentryBaseReward(uint256 _baseReward) public onlyRole(DEFAULT_ADMIN_ROLE) {
         sentryBaseReward = _baseReward;
     }
 
-    function setValidatorBaseReward(uint256 _baseReward) public onlyOwner {
+    function setValidatorBaseReward(uint256 _baseReward) public onlyRole(DEFAULT_ADMIN_ROLE) {
         validatorBaseReward = _baseReward;
     }
 
@@ -253,7 +258,7 @@ contract Subnet is OwnableUpgradeable {
             require(!processedClaim[claim.cycle][claim.validator][claim.index],"aready claimed");
             processedClaim[claim.cycle][claim.validator][claim.index] = true;
             if (block.chainid != 31337) {
-                require(network.getCurrentCycle() - claim.cycle  > 1,"Cannot claim current or future cycles");
+                require(network.getCurrentCycle() - claim.cycle > 1, "Cannot claim current or future cycles");
             }
             //1. loop through validators and hash the first 6 bytes of the subnetId and the amount with the previous hash
             // address[] memory validSigners;
@@ -281,7 +286,6 @@ contract Subnet is OwnableUpgradeable {
                 sentryContract.operatorsOwner(claim.validator),
                 validatorBaseReward + (claim.totalCost / 2)
             );
-           
             for (uint i = 0; i < 30; i++) {
                 uint decodedLicence = (MLUtils.lcg(
                     ((((uint(claimHash) / ((uint(claimHash) % 1000))) %
@@ -330,7 +334,7 @@ contract Subnet is OwnableUpgradeable {
             }
         }
         sentryContract.fillLicenseCountGap();
-        superNodeContract.fillLicenseCountGap();
+        validatorNodeContract.fillLicenseCountGap();
         //6. Reward the operators that provided the proof
     }
 }

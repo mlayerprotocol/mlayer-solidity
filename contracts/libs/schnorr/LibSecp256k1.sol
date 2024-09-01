@@ -171,7 +171,7 @@ library LibSecp256k1 {
     /// @custom:invariant Uses constant amount of gas.
     function addAffinePoint(JacobianPoint memory self, Point memory p)
         internal
-        view
+        pure
     {
         // Addition formula:
         //      x = r² - j - (2 * v)             (mod P)

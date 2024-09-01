@@ -5,29 +5,36 @@ import { ethers } from "hardhat";
 import { ContractTransactionResponse } from 'ethers';
 import {
   IcmToken,
-  SentryV2Node,
-  xMLTToken,
+  .targe,
+  XMLTToken,
   Subnet,
   Network,
+  NodeLicense,
 } from '../typechain-types';
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers';
 
 let networkContract: Network & {
   deploymentTransaction(): ContractTransactionResponse;
 };
-let sentryContract: SentryV2Node & {
+let sentryContract: .targe & {
   deploymentTransaction(): ContractTransactionResponse;
 };
 let icmTokenContract: IcmToken & {
   deploymentTransaction(): ContractTransactionResponse;
 };
-let xTokenContract: xMLTToken & {
+let xTokenContract: XMLTToken & {
   deploymentTransaction(): ContractTransactionResponse;
 };
-let validatorContract: SentryV2Node & {
+let validatorContract: .targe & {
   deploymentTransaction(): ContractTransactionResponse;
 };
 let subnetContract: Subnet & {
+  deploymentTransaction(): ContractTransactionResponse;
+};
+let sentryLicenseContract: NodeLicense & {
+  deploymentTransaction(): ContractTransactionResponse;
+};
+let validatorLicenseContract: NodeLicense & {
   deploymentTransaction(): ContractTransactionResponse;
 };
 let ownerAccount: HardhatEthersSigner;
@@ -40,48 +47,97 @@ describe('Subnet', function () {
 
   async function deployContract() {
     // Contracts are deployed using the first signer/account by default
-    const [owner, otherAccount] = await ethers.getSigners();
+    const [owner, otherAccount, _account3, _account4] =
+      await ethers.getSigners();
 
     const Network = await ethers.getContractFactory('Network');
     const network = await Network.deploy();
     await network.initialize(2n, 0n);
 
     const IcmToken = await ethers.getContractFactory('IcmToken');
-    const _icmToken = await IcmToken.deploy();
+    const _icmToken = await IcmToken.deploy(
+      'ICM',
+      'ICM',
+      ethers.parseEther('1000000000')
+    );
 
     const xIcmToken = await ethers.getContractFactory('xMLTToken');
-    const xToken = await xIcmToken.deploy();
+    const xToken = await xIcmToken.deploy(
+      'xICM',
+      'xICM',
+      ethers.parseEther('1000000000')
+    );
 
-    const Sentry = await ethers.getContractFactory('SentryV2Node');
+    const LicenseContract = await ethers.getContractFactory('NodeLicense');
+    const _licenseContract = await LicenseContract.deploy();
+    _licenseContract.initialize(
+      'LicenceContract',
+      'MLL',
+      otherAccount.address,
+      [
+        { price: ethers.parseEther('0.0001'), quantity: 5 },
+        { price: ethers.parseEther('0.0002'), quantity: 5 },
+        { price: ethers.parseEther('0.0003'), quantity: 5 },
+      ]
+    );
+
+    _licenseContract.addPromoCode('ML', _account3.address);
+    _licenseContract.setPromoPercentages(5n, 5n);
+
+    const ValLicenseContract = await ethers.getContractFactory('NodeLicense');
+    const _valLicenseContract = await LicenseContract.deploy();
+    _valLicenseContract.initialize(
+      'ValLicenceContract',
+      'vMLL',
+      _account4.address,
+      [
+        { price: ethers.parseEther('0.0005'), quantity: 5 },
+        { price: ethers.parseEther('0.0010'), quantity: 5 },
+        { price: ethers.parseEther('0.0015'), quantity: 5 },
+      ]
+    );
+
+    _valLicenseContract.addPromoCode('ML', _account3.address);
+    _valLicenseContract.setPromoPercentages(5n, 5n);
+
+    const Sentry = await ethers.getContractFactory('.targe');
     const sentry = await Sentry.deploy();
-    await sentry.initialize(network.getAddress(), _icmToken.getAddress(), 100n);
+    await sentry.initialize(
+      network.target,
+      _icmToken.target,
+      _licenseContract.target
+    );
+    await _licenseContract.setNodeContract(sentry.target);
 
     console.log('CURRENTBLOCK:::', await network.getCurrentBlockNumber());
-    const Validator = await ethers.getContractFactory('SentryV2Node');
+    const Validator = await ethers.getContractFactory('.targe');
     const validator = await Validator.deploy();
     await validator.initialize(
-      network.getAddress(),
-      _icmToken.getAddress(),
-      10000n
+      network.target,
+      _icmToken.target,
+      _valLicenseContract.target
     );
+    await _valLicenseContract.setNodeContract(validator.target);
 
     const Subnet = await ethers.getContractFactory('Subnet');
     const _subnet = await Subnet.deploy();
 
     await _subnet.initialize(
-      network.getAddress(),
-      _icmToken.getAddress(),
-      xToken.getAddress(),
-      sentry.getAddress(),
-      validator.getAddress()
+      network.target,
+      _icmToken.target,
+      xToken.target,
+      sentry.target,
+      validator.target
     );
-    await xToken.setSubnetContract(_subnet.getAddress());
+    await xToken.setMinter(_subnet.target);
     return {
       _icmToken,
       xToken,
       sentry,
       validator,
       _subnet,
+      _valLicenseContract,
+      _licenseContract,
       owner,
       otherAccount,
     };
@@ -89,14 +145,24 @@ describe('Subnet', function () {
 
   describe('Deployment', function () {
     it('Should have withdrawalEnabled as FALSE', async function () {
-      const { _subnet, owner, _icmToken, xToken, sentry, validator } =
-        await loadFixture(deployContract);
+      const {
+        _subnet,
+        owner,
+        _icmToken,
+        xToken,
+        sentry,
+        _licenseContract,
+        _valLicenseContract,
+        validator,
+      } = await loadFixture(deployContract);
       ownerAccount = owner;
       sentryContract = sentry;
       icmTokenContract = _icmToken;
       xTokenContract = xToken;
       validatorContract = validator;
       subnetContract = _subnet;
+      sentryLicenseContract = _licenseContract;
+      validatorLicenseContract = _valLicenseContract;
 
       expect(await _subnet.withdrawalEnabled()).to.equal(false);
     });
@@ -110,14 +176,14 @@ describe('Subnet', function () {
     it(`Should Subnet ${subnetHex} -- ${subnetAmountVal}`, async function () {
       const { _subnet, _icmToken, owner } = await loadFixture(deployContract);
       ownerAccount = owner;
-      await _icmToken.approve(_subnet.getAddress(), subnetAmountVal);
+      await _icmToken.approve(_subnet.target, subnetAmountVal);
       await expect(_subnet.stake(subnetHex, 0)).to.be.revertedWith(
         'You need to stake the minimum amount of tokens'
       );
       await expect(
         _subnet.stake(subnetHex, subnetAmountVal)
       ).to.be.revertedWith('You need to stake more than the minimum stake');
-      await _icmToken.approve(_subnet.getAddress(), subnetAmountVal2);
+      await _icmToken.approve(_subnet.target, subnetAmountVal2);
       await expect(_subnet.stake(subnetHex, subnetAmountVal2)).not.to.be
         .reverted;
 
@@ -134,7 +200,7 @@ describe('Subnet', function () {
     it(`Should Get Balance for Subnet ${subnetHex} -- ${subnetAmountVal} == ${minStakable}`, async function () {
       const { _subnet, _icmToken, owner } = await loadFixture(deployContract);
 
-      await _icmToken.approve(_subnet.getAddress(), subnetAmountVal);
+      await _icmToken.approve(_subnet.target, subnetAmountVal);
       expect(await _subnet.minStakable()).to.equal(minStakable);
       await _subnet.stake(subnetHex, subnetAmountVal);
       expect(await _subnet.subnetBalance(subnetHex)).to.equal(subnetAmountVal);
@@ -217,24 +283,31 @@ describe('Subnet', function () {
 
     it('Should be able to make purchase', async function () {
       // const { _sentryContract, owner } = await loadFixture(deployContract);
+      const promoCode = '';
       const quantity = 4n;
-      const licenseCost =
-        (await sentryContract.getLicencePrice(ethers.ZeroAddress)) * quantity;
+      const licenseCost = await sentryLicenseContract.licensePrice(
+        quantity,
+        promoCode
+      );
 
       // await icmTokenContract.approve(
       //   ownerAccount.address,
       //   licenseCost * quantity
       // );
+      const [_owner, _otherAccount, _account3, _account4] =
+        await ethers.getSigners();
+      const balanceBefore = await ethers.provider.getBalance(
+        _otherAccount.address
+      );
       await expect(
-        sentryContract.purchaseLicense(quantity, ethers.ZeroAddress, {
+        sentryContract.purchaseLicense(quantity, promoCode, {
           value: licenseCost,
         })
       ).to.not.be.reverted;
-      const contractBalance = await ethers.provider.getBalance(
-        sentryContract.getAddress()
-      );
 
-      expect(contractBalance).to.equal(licenseCost);
+      const balance = await ethers.provider.getBalance(_otherAccount.address);
+
+      expect(balance).to.equal(balanceBefore + licenseCost);
     });
 
     it('Should be able to registerNodeOperator', async function () {
@@ -244,8 +317,8 @@ describe('Subnet', function () {
         sentryContract.registerNodeOperator(regData, [1006n])
       ).to.be.revertedWith('registerNodeOperator: you must own all licenses');
 
-      await expect(sentryContract.registerNodeOperator(regData, [1000n, 1001n]))
-        .to.not.be.reverted;
+      await expect(sentryContract.registerNodeOperator(regData, [1n, 2n])).to
+        .not.be.reverted;
     });
 
     it(`rewardValidator should be fail`, async function () {
@@ -264,7 +337,7 @@ describe('Subnet', function () {
   //   it(`Should Get Unstack`, async function () {
   //     const { _subnet, _icmToken, owner } = await loadFixture(deployContract);
 
-  //     await _icmToken.approve(_subnet.getAddress(), subnetAmountVal);
+  //     await _icmToken.approve(_subnet.target, subnetAmountVal);
 
   //     await _subnet.stake(subnetId, subnetAmountVal);
 

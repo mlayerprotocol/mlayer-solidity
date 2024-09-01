@@ -14,5 +14,10 @@ interface INetwork {
     function getCurrentBlockNumber() external view returns (uint256);
     function getCurrentEpoch() external view returns (uint256);
     function getCurrentYear(uint256 blockNumber) external view returns (uint256);
+    function getMessagePrice(uint cycle) external view returns (uint256);
+    function getCurrentMessagePrice() external view returns (uint256);
+
+    // write
+    function setMessagePrice(uint price) external;
 
 }
