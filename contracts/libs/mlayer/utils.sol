@@ -57,8 +57,22 @@ library MLUtils {
         }
         return number;
     }
+    function bytesToUint64(bytes memory b) internal pure returns (uint64) {
+        uint64 number;
+        for (uint256 i = 0; i < b.length; i++) {
+            number = number * 64 + uint8(b[i]);
+        }
+        return number;
+    }
+    function bytesToUint(bytes32 b) internal pure returns (uint256) {
+        uint256 number;
+        for (uint256 i = 0; i < b.length; i++) {
+            number = number * 256 + uint8(b[i]);
+        }
+        return number;
+    }
 
-    function lcg(uint256 seed) public pure returns (uint256) {
+    function lcg(uint256 seed) internal pure returns (uint256) {
         uint256 a = 1664525;
         uint256 c = 1013904223;
         uint256 m = 2 ** 32; // Equivalent to 1 << 32 in Go

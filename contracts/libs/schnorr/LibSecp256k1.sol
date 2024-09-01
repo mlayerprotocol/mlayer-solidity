@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
-import "hardhat/console.sol";
+
 /**
  * @title LibSecp256k1
  *
@@ -64,6 +64,7 @@ library LibSecp256k1 {
     ///      keccak256 hash of the concatenation of the hex-encoded x and y
     ///      coordinates of the corresponding ECDSA public key.
     ///      See "Appendix F: Signing Transactions" §134 in the Yellow Paper.
+
     function toAddress(Point memory self) internal pure returns (address) {
         address addr;
         // Functionally equivalent Solidity code:
@@ -170,7 +171,7 @@ library LibSecp256k1 {
     /// @custom:invariant Uses constant amount of gas.
     function addAffinePoint(JacobianPoint memory self, Point memory p)
         internal
-        view
+        pure
     {
         // Addition formula:
         //      x = r² - j - (2 * v)             (mod P)
@@ -245,7 +246,7 @@ library LibSecp256k1 {
             self.z = addmod(left, addmod(mid, right, _P), _P);
         }
 
-// console.log("mulmod", h_2, i);
+
         // Compute v = x1 * i (mod P)
         uint v = mulmod(x1, i, _P);
 

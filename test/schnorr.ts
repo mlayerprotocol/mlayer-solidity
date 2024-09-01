@@ -43,6 +43,25 @@ describe('Stake', function () {
         ).x
       ).to.not.reverted;
     });
+    it('Should verify single signatures', async function () {
+      const { schnorr } = await loadFixture(deployOneYearLockFixture);
+      const hash = ethers.keccak256(Buffer.from('femi'));
+      const seed = ethers.randomBytes(32);
+
+      const wallet = ethers.Wallet.createRandom();
+      // wallet.publicKey.console.log('SEEED', seed);
+      const seedString = Buffer.from(seed).toString('hex');
+      // for (let i = 0; i < 2; i++) {
+      //   seeds.push(seed);
+      // }
+      // console.log('Verifying seeds', seeds);
+      expect(
+        await schnorr.testFuzz_verifySignature_SingleSigner(
+          BigInt('0x' + seedString),
+          hash
+        )
+      ).to.equal(true);
+    });
 
     it('Should verify multiple aggregate signatures', async function () {
       const { schnorr } = await loadFixture(deployOneYearLockFixture);

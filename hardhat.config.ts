@@ -1,6 +1,6 @@
 // import { HardhatUserConfig } from "hardhat/config";
 // import "@nomicfoundation/hardhat-toolbox";
-
+import './scripts/abigen';
 // const config: HardhatUserConfig = {
 //   solidity: "0.8.17",
 // };
@@ -92,6 +92,14 @@ module.exports = {
       accounts: secrets.keys.prod,
       chainId: 43114,
       gas: 5100000,
+      // gasPrice: 25000000000,
+      timeout: 7200000,
+    },
+    basetest: {
+      url: secrets.rpc.basespolia,
+      accounts: secrets.keys.dev,
+      chainId: 84532,
+      gas: 100000000,
       // gasPrice: 25000000000,
       timeout: 7200000,
     },

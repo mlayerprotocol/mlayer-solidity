@@ -6,8 +6,13 @@ async function main() {
   const [owner, otherAccount] = await ethers.getSigners();
 
   const IcmToken = await ethers.getContractFactory("IcmToken");
-  const _icmToken = await IcmToken.deploy();
-  console.log('Token Deployed to : ', _icmToken.address)
+  const _icmToken = await IcmToken.deploy(
+    'tICM',
+    'tICM',
+    ethers.parseEther('1000000000')
+  );
+
+  console.log('Token Deployed to : ', _icmToken.target);
 
   return { _icmToken, owner, otherAccount };
 

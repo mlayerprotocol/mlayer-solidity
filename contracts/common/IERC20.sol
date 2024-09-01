@@ -16,6 +16,12 @@ interface IERC20 {
         view
         returns (uint256);
 
+     function burn(uint amount) external;
+     function operatorMint(address receiver, uint256 amount) external;
+
+     function setMinter(address receiver) external;
+     function disableMinter(address receiver) external;
+
     function approve(address spender, uint256 amount) external returns (bool);
 
     function transferFrom(
